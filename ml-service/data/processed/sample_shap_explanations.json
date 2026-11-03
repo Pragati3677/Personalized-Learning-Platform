@@ -1,0 +1,162 @@
+[
+  {
+    "actual_level": "average",
+    "predicted_level": "average",
+    "explanation_text": "Classified as 'average'. Top contributing factors: assessment_score (value=59.2) increased the confidence in 'average' by 0.125; previous_score (value=54.4) increased the confidence in 'average' by 0.069; prerequisite_score (value=54.4) increased the confidence in 'average' by 0.065.",
+    "top_feature_contributions": [
+      {
+        "feature": "assessment_score",
+        "shap_value": 0.125,
+        "raw_value": 59.22
+      },
+      {
+        "feature": "previous_score",
+        "shap_value": 0.0689,
+        "raw_value": 54.41
+      },
+      {
+        "feature": "prerequisite_score",
+        "shap_value": 0.0651,
+        "raw_value": 54.41
+      },
+      {
+        "feature": "medium_accuracy",
+        "shap_value": 0.0444,
+        "raw_value": 56.98
+      },
+      {
+        "feature": "easy_accuracy",
+        "shap_value": 0.038,
+        "raw_value": 79.26
+      }
+    ]
+  },
+  {
+    "actual_level": "average",
+    "predicted_level": "average",
+    "explanation_text": "Classified as 'average'. Top contributing factors: assessment_score (value=60.6) increased the confidence in 'average' by 0.136; medium_accuracy (value=61.8) increased the confidence in 'average' by 0.056; previous_score (value=49.3) increased the confidence in 'average' by 0.045.",
+    "top_feature_contributions": [
+      {
+        "feature": "assessment_score",
+        "shap_value": 0.1356,
+        "raw_value": 60.61
+      },
+      {
+        "feature": "medium_accuracy",
+        "shap_value": 0.0559,
+        "raw_value": 61.79
+      },
+      {
+        "feature": "previous_score",
+        "shap_value": 0.0452,
+        "raw_value": 49.26
+      },
+      {
+        "feature": "prerequisite_score",
+        "shap_value": 0.0421,
+        "raw_value": 49.26
+      },
+      {
+        "feature": "easy_accuracy",
+        "shap_value": 0.0395,
+        "raw_value": 81.01
+      }
+    ]
+  },
+  {
+    "actual_level": "average",
+    "predicted_level": "average",
+    "explanation_text": "Classified as 'average'. Top contributing factors: assessment_score (value=67.8) increased the confidence in 'average' by 0.148; initial_level_numeric (value=0.0) decreased the confidence in 'average' by 0.067; hard_accuracy (value=65.0) increased the confidence in 'average' by 0.063.",
+    "top_feature_contributions": [
+      {
+        "feature": "assessment_score",
+        "shap_value": 0.1477,
+        "raw_value": 67.8
+      },
+      {
+        "feature": "initial_level_numeric",
+        "shap_value": -0.0674,
+        "raw_value": 0.0
+      },
+      {
+        "feature": "hard_accuracy",
+        "shap_value": 0.0634,
+        "raw_value": 65.05
+      },
+      {
+        "feature": "easy_accuracy",
+        "shap_value": 0.0591,
+        "raw_value": 75.59
+      },
+      {
+        "feature": "prerequisite_score",
+        "shap_value": -0.0399,
+        "raw_value": 40.9
+      }
+    ]
+  },
+  {
+    "actual_level": "average",
+    "predicted_level": "average",
+    "explanation_text": "Classified as 'average'. Top contributing factors: assessment_score (value=77.2) decreased the confidence in 'average' by 0.057; medium_accuracy (value=73.2) increased the confidence in 'average' by 0.031; previous_score (value=78.8) decreased the confidence in 'average' by 0.026.",
+    "top_feature_contributions": [
+      {
+        "feature": "assessment_score",
+        "shap_value": -0.0569,
+        "raw_value": 77.17
+      },
+      {
+        "feature": "medium_accuracy",
+        "shap_value": 0.0313,
+        "raw_value": 73.22
+      },
+      {
+        "feature": "previous_score",
+        "shap_value": -0.0261,
+        "raw_value": 78.76
+      },
+      {
+        "feature": "engagement_score",
+        "shap_value": -0.023,
+        "raw_value": 76.18
+      },
+      {
+        "feature": "initial_level_numeric",
+        "shap_value": 0.0149,
+        "raw_value": 1.0
+      }
+    ]
+  },
+  {
+    "actual_level": "average",
+    "predicted_level": "average",
+    "explanation_text": "Classified as 'average'. Top contributing factors: assessment_score (value=73.0) increased the confidence in 'average' by 0.118; prerequisite_score (value=70.2) increased the confidence in 'average' by 0.066; previous_score (value=70.2) increased the confidence in 'average' by 0.064.",
+    "top_feature_contributions": [
+      {
+        "feature": "assessment_score",
+        "shap_value": 0.1181,
+        "raw_value": 73.0
+      },
+      {
+        "feature": "prerequisite_score",
+        "shap_value": 0.0656,
+        "raw_value": 70.25
+      },
+      {
+        "feature": "previous_score",
+        "shap_value": 0.0643,
+        "raw_value": 70.25
+      },
+      {
+        "feature": "easy_accuracy",
+        "shap_value": 0.0418,
+        "raw_value": 77.21
+      },
+      {
+        "feature": "medium_accuracy",
+        "shap_value": 0.0279,
+        "raw_value": 73.93
+      }
+    ]
+  }
+]

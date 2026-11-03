@@ -1,0 +1,178 @@
+{
+  "cleaning": {
+    "duplicate_rows_found": 15,
+    "missing_values_before": {
+      "learning_time_minutes": 30,
+      "engagement_score": 45,
+      "previous_score": 300,
+      "improvement_pct": 300
+    },
+    "missing_values_after": {},
+    "rows_after_cleaning": 1500
+  },
+  "eda": {
+    "label_distribution": {
+      "average": 875,
+      "slow": 335,
+      "advanced": 290
+    },
+    "numeric_summary": {
+      "cycle": {
+        "count": 1500.0,
+        "mean": 3.0,
+        "std": 1.41,
+        "min": 1.0,
+        "25%": 2.0,
+        "50%": 3.0,
+        "75%": 4.0,
+        "max": 5.0
+      },
+      "prerequisite_score": {
+        "count": 1500.0,
+        "mean": 60.27,
+        "std": 19.4,
+        "min": 0.0,
+        "25%": 47.09,
+        "50%": 60.7,
+        "75%": 74.23,
+        "max": 100.0
+      },
+      "learning_completion_rate": {
+        "count": 1500.0,
+        "mean": 63.27,
+        "std": 21.57,
+        "min": 0.0,
+        "25%": 48.47,
+        "50%": 63.85,
+        "75%": 79.56,
+        "max": 100.0
+      },
+      "learning_time_minutes": {
+        "count": 1500.0,
+        "mean": 77.25,
+        "std": 18.97,
+        "min": 11.07,
+        "25%": 65.47,
+        "50%": 77.21,
+        "75%": 89.69,
+        "max": 139.4
+      },
+      "practice_attempts": {
+        "count": 1500.0,
+        "mean": 4.97,
+        "std": 2.2,
+        "min": 0.0,
+        "25%": 3.0,
+        "50%": 5.0,
+        "75%": 6.0,
+        "max": 12.0
+      },
+      "engagement_score": {
+        "count": 1500.0,
+        "mean": 62.69,
+        "std": 15.65,
+        "min": 4.67,
+        "25%": 52.41,
+        "50%": 63.1,
+        "75%": 72.9,
+        "max": 100.0
+      },
+      "assessment_score": {
+        "count": 1500.0,
+        "mean": 60.62,
+        "std": 19.55,
+        "min": 0.0,
+        "25%": 47.37,
+        "50%": 61.28,
+        "75%": 74.78,
+        "max": 100.0
+      },
+      "easy_accuracy": {
+        "count": 1500.0,
+        "mean": 71.89,
+        "std": 19.36,
+        "min": 5.48,
+        "25%": 58.93,
+        "50%": 72.69,
+        "75%": 87.26,
+        "max": 100.0
+      },
+      "medium_accuracy": {
+        "count": 1500.0,
+        "mean": 60.43,
+        "std": 20.4,
+        "min": 0.0,
+        "25%": 46.48,
+        "50%": 60.53,
+        "75%": 75.56,
+        "max": 100.0
+      },
+      "hard_accuracy": {
+        "count": 1500.0,
+        "mean": 48.66,
+        "std": 20.8,
+        "min": 0.0,
+        "25%": 34.51,
+        "50%": 49.0,
+        "75%": 63.42,
+        "max": 100.0
+      },
+      "previous_score": {
+        "count": 1500.0,
+        "mean": 60.27,
+        "std": 19.4,
+        "min": 0.0,
+        "25%": 47.09,
+        "50%": 60.7,
+        "75%": 74.23,
+        "max": 100.0
+      },
+      "improvement_pct": {
+        "count": 1500.0,
+        "mean": 0.25,
+        "std": 7.78,
+        "min": -26.4,
+        "25%": -3.8,
+        "50%": 0.0,
+        "75%": 4.3,
+        "max": 26.9
+      },
+      "level_score_hint": {
+        "count": 1500.0,
+        "mean": 53.0,
+        "std": 21.02,
+        "min": 15.38,
+        "25%": 52.39,
+        "50%": 54.88,
+        "75%": 56.86,
+        "max": 89.06
+      },
+      "is_first_cycle": {
+        "count": 1500.0,
+        "mean": 0.2,
+        "std": 0.4,
+        "min": 0.0,
+        "25%": 0.0,
+        "50%": 0.0,
+        "75%": 0.0,
+        "max": 1.0
+      }
+    },
+    "feature_target_correlation": {
+      "level_score_hint": 0.996,
+      "assessment_score": 0.852,
+      "prerequisite_score": 0.825,
+      "previous_score": 0.825,
+      "medium_accuracy": 0.809,
+      "easy_accuracy": 0.806,
+      "hard_accuracy": 0.788,
+      "engagement_score": 0.347,
+      "improvement_pct": 0.052,
+      "cycle": 0.019,
+      "is_first_cycle": -0.008,
+      "practice_attempts": -0.036,
+      "learning_time_minutes": -0.06,
+      "learning_completion_rate": -0.08
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "selected_model": "random_forest",
+  "selection_criterion": "highest 5-fold stratified CV F1-macro on the training set",
+  "cv_f1_macro": 0.875,
+  "test_accuracy": 0.8867,
+  "label_classes": [
+    "advanced",
+    "average",
+    "slow"
+  ],
+  "feature_columns": [
+    "prerequisite_score",
+    "initial_level_numeric",
+    "learning_completion_rate",
+    "learning_time_minutes",
+    "practice_attempts",
+    "engagement_score",
+    "assessment_score",
+    "easy_accuracy",
+    "medium_accuracy",
+    "hard_accuracy",
+    "previous_score",
+    "improvement_pct",
+    "is_first_cycle",
+    "accuracy_spread",
+    "effort_proxy"
+  ]
+}

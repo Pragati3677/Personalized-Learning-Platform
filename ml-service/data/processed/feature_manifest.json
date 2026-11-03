@@ -1,0 +1,49 @@
+{
+  "target_column": "level",
+  "final_feature_columns": [
+    "prerequisite_score",
+    "initial_level_numeric",
+    "learning_completion_rate",
+    "learning_time_minutes",
+    "practice_attempts",
+    "engagement_score",
+    "assessment_score",
+    "easy_accuracy",
+    "medium_accuracy",
+    "hard_accuracy",
+    "previous_score",
+    "improvement_pct",
+    "is_first_cycle",
+    "accuracy_spread",
+    "effort_proxy"
+  ],
+  "leakage_analysis": {
+    "identifiers_excluded": [
+      "student_id",
+      "cycle"
+    ],
+    "leaky_columns_detected_and_dropped": {
+      "level_score_hint": "correlation with target = 0.996 (> 0.95 threshold) \u2014 near-direct encoding of the label, not a genuine predictive signal."
+    }
+  },
+  "engineered_features": [
+    "accuracy_spread",
+    "effort_proxy",
+    "initial_level_numeric",
+    "is_first_cycle"
+  ],
+  "split": {
+    "train_rows": 1200,
+    "test_rows": 300,
+    "train_label_distribution": {
+      "average": 700,
+      "slow": 268,
+      "advanced": 232
+    },
+    "test_label_distribution": {
+      "average": 175,
+      "slow": 67,
+      "advanced": 58
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "assessment_score": 0.2288,
+  "previous_score": 0.1693,
+  "prerequisite_score": 0.1578,
+  "medium_accuracy": 0.0958,
+  "easy_accuracy": 0.0942,
+  "hard_accuracy": 0.0811,
+  "initial_level_numeric": 0.0471,
+  "improvement_pct": 0.0255,
+  "engagement_score": 0.0229,
+  "accuracy_spread": 0.0188,
+  "effort_proxy": 0.0165,
+  "learning_time_minutes": 0.0162,
+  "learning_completion_rate": 0.0128,
+  "practice_attempts": 0.0092,
+  "is_first_cycle": 0.0039
+}
