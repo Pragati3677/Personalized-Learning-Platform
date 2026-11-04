@@ -242,6 +242,57 @@ export default function Auth({
   };
 
   // ============================================================
+  // FORGOT PASSWORD
+  // ============================================================
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+
+    setError("");
+    setLoading(true);
+
+    try {
+      const normalizedEmail = email.trim().toLowerCase();
+
+      if (!normalizedEmail) {
+        throw new Error("Please enter your registered email address.");
+      }
+
+      console.log("[Frontend] Sending forgot-password request...");
+
+      const response = await fetch(`${API_URL}/auth/forgot-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: normalizedEmail }),
+      });
+
+      const data = await response.json();
+
+      console.log("[Frontend] Forgot-password response:", {
+        status: response.status,
+        success: data.success,
+        message: data.message,
+      });
+
+      if (!response.ok || !data.success) {
+        throw new Error(
+          data.message || "Unable to send reset email. Please try again."
+        );
+      }
+
+      // Show the confirmation screen only after the API responds successfully.
+      setScreen("reset");
+    } catch (err) {
+      console.error("[Frontend] Forgot-password error:", err);
+      setError(err.message || "Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ============================================================
   // SWITCH LOGIN / REGISTER
   // ============================================================
 
@@ -672,9 +723,10 @@ export default function Auth({
             <>
               <button
                 type="button"
-                onClick={() =>
-                  setScreen("main")
-                }
+                onClick={() => {
+                  setScreen("main");
+                  setError("");
+                }}
                 className="text-sm text-indigo-600 mb-4 hover:underline"
               >
                 ← Back to login
@@ -683,33 +735,51 @@ export default function Auth({
               <h1
                 className="text-2xl font-bold text-indigo-950 mb-2"
                 style={{
-                  fontFamily:
-                    "'DM Sans',sans-serif",
+                  fontFamily: "'DM Sans',sans-serif",
                 }}
               >
-                Reset Password
+                Forgot Password?
               </h1>
 
               <p className="text-slate-500 text-sm mb-6">
-                Enter your email and we'll
-                send a reset link.
+                Enter your registered email address. We will send you a password
+                reset link.
               </p>
 
-              <input
-                type="email"
-                className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                placeholder="your@email.com"
-              />
-
-              <button
-                type="button"
-                onClick={() =>
-                  setScreen("reset")
-                }
-                className="btn-primary w-full justify-center"
+              <form
+                onSubmit={handleForgotPassword}
+                className="space-y-4"
               >
-                Send Reset Link
-              </button>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Email Address
+                  </label>
+
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                    placeholder="your@email.com"
+                    autoComplete="email"
+                    required
+                  />
+                </div>
+
+                {error && (
+                  <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="btn-primary w-full justify-center"
+                >
+                  {loading ? "Sending..." : "Send Reset Link"}
+                </button>
+              </form>
             </>
           )}
 

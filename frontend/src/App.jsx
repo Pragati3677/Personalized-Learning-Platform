@@ -8,6 +8,7 @@ import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import PrerequisiteQuiz from "./pages/PrerequisiteQuiz";
+import ResetPassword from "./pages/ResetPassword";
 
 // ---------------- STUDENT PAGES ----------------
 
@@ -282,8 +283,22 @@ const pageTitles = {
 // ============================================================
 
 export default function App() {
-  const [view, setView] =
-    useState("landing");
+  // Detect password-reset links opened directly from email.
+  const [resetToken] = useState(() => {
+    const match = window.location.pathname.match(
+      /^\/reset-password\/([^/]+)\/?$/
+    );
+
+    return match ? decodeURIComponent(match[1]) : null;
+  });
+
+  const [view, setView] = useState(() => {
+    return /^\/reset-password\/[^/]+\/?$/.test(
+      window.location.pathname
+    )
+      ? "reset-password"
+      : "landing";
+  });
 
   const [role, setRole] =
     useState(() => {
@@ -488,6 +503,7 @@ export default function App() {
     "onboarding",
     "prereq-quiz",
     "quiz-result",
+    "reset-password",
   ].includes(view);
 
   // ==========================================================
@@ -498,6 +514,15 @@ export default function App() {
     if (view === "landing") {
       return (
         <Landing
+          onNav={nav}
+        />
+      );
+    }
+
+    if (view === "reset-password") {
+      return (
+        <ResetPassword
+          token={resetToken}
           onNav={nav}
         />
       );
