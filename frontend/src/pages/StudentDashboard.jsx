@@ -689,41 +689,7 @@ console.table(
 
           </div>
 
-          {courseCompleted ? (
-            <button
-              onClick={() =>
-                onNav(
-                  "certificate-preview"
-                )
-              }
-              className="flex-shrink-0 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
-              style={{
-                background:
-                  "rgba(255,255,255,0.15)",
-                border:
-                  "1px solid rgba(255,255,255,0.25)",
-                color: "white",
-              }}
-            >
-              View Certificate →
-            </button>
-          ) : (
-            <button
-              onClick={() =>
-                onNav("learning-path")
-              }
-              className="flex-shrink-0 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
-              style={{
-                background:
-                  "rgba(255,255,255,0.15)",
-                border:
-                  "1px solid rgba(255,255,255,0.25)",
-                color: "white",
-              }}
-            >
-              View Learning Path →
-            </button>
-          )}
+
 
         </div>
 
@@ -750,75 +716,7 @@ console.table(
           TOP STATISTICS
       ================================================== */}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-        {/* AI CLASSIFICATION */}
-
-        <div
-          className="card p-5"
-          style={{
-            background:
-              "linear-gradient(135deg,#4F46E5,#312E81)",
-            color: "white",
-          }}
-        >
-
-          <div
-            className="ai-chip mb-3"
-            style={{
-              background:
-                "rgba(255,255,255,0.15)",
-              color: "white",
-              borderColor:
-                "rgba(255,255,255,0.3)",
-            }}
-          >
-            🤖 AI Classification
-          </div>
-
-          <div
-            className="text-3xl font-black mb-1"
-            style={{
-              fontFamily:
-                "'DM Sans', sans-serif",
-            }}
-          >
-            {loadingDashboard
-              ? "Analyzing..."
-              : learningLevel}
-          </div>
-
-          <div className="text-indigo-200 text-sm mb-3">
-            {analysisAvailable
-              ? `AI Score: ${learningScore}/100`
-              : "Waiting for evaluation analysis"}
-          </div>
-
-          <div className="flex gap-1">
-
-            {[
-              "Slow",
-              "Average",
-              "Advanced",
-            ].map((level, index) => (
-              <div
-                key={level}
-                className={`flex-1 h-1.5 rounded-full ${
-                  index === levelIndex
-                    ? "bg-cyan-400"
-                    : "bg-white/20"
-                }`}
-              />
-            ))}
-
-          </div>
-
-          <p className="text-indigo-200 text-xs mt-2">
-            Based on your latest learning
-            performance and AI evaluation.
-          </p>
-
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
         {/* OVERALL PROGRESS */}
 
