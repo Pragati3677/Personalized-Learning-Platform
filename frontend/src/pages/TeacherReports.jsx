@@ -654,7 +654,7 @@ export default function TeacherReports() {
             />
 
             <ReportStat
-              label="Class Average"
+              label="Average Student Score"
               value={`${Math.round(
                 summary.classAverage || 0
               )}%`}

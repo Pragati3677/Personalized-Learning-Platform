@@ -329,7 +329,7 @@ export default function TeacherDashboard({ onNav }) {
           </div>
 
           <div className="text-xs text-slate-500">
-            Class Average
+            Average Student Score
           </div>
         </div>
 
@@ -649,11 +649,20 @@ export default function TeacherDashboard({ onNav }) {
                   {/* VIEW */}
 
                   <button
-                    onClick={() =>
-                      onNav(
-                        "student-detail"
-                      )
-                    }
+                    onClick={() => {
+                      // Save the selected student before opening details.
+                      localStorage.setItem(
+                        "teacherSelectedStudentId",
+                        String(student.id)
+                      );
+
+                      localStorage.setItem(
+                        "teacherSelectedStudentName",
+                        student.name || ""
+                      );
+
+                      onNav("student-detail");
+                    }}
                     className="btn-secondary text-xs py-1.5 px-3"
                   >
                     View

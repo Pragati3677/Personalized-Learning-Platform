@@ -356,7 +356,7 @@ export default function StudentMonitoring({ onNav }) {
 
         <div className="overflow-x-auto">
 
-          <table className="w-full min-w-[1200px]">
+          <table className="w-full min-w-[1650px]">
 
             {/* ==================================================
                 HEADER
@@ -372,6 +372,8 @@ export default function StudentMonitoring({ onNav }) {
                   "Prerequisite",
                   "Score",
                   "Progress",
+                  "Course Status",
+                  "Certificate Status",
                   "Weak Topics",
                   "Last Active",
                   "Risk",
@@ -399,7 +401,7 @@ export default function StudentMonitoring({ onNav }) {
                 <tr>
 
                   <td
-                    colSpan="9"
+                    colSpan="11"
                     className="px-4 py-12 text-center"
                   >
 
@@ -465,6 +467,72 @@ export default function StudentMonitoring({ onNav }) {
                       Number(
                         student.progress || 0
                       );
+
+                    // Course completion is based on all 18 required topics.
+                    // Prefer the backend status, with a safe fallback.
+                    const completedTopics = Number(
+                      student.completedTopics ??
+                      student.completedTopicCount ??
+                      0
+                    );
+
+                    const totalTopics = Number(
+                      student.totalTopics || 18
+                    );
+
+                    const courseStatus =
+                      student.courseStatus ||
+                      (completedTopics >= totalTopics
+                        ? "completed"
+                        : progress > 0
+                        ? "in_progress"
+                        : "not_started");
+
+                    // Support the certificate response in either nested or
+                    // flat form. "Eligible" does not mean "Issued".
+                    const certificate = student.certificate || {};
+                    const finalEvaluation =
+                      student.finalEvaluation || {};
+
+                    const certificateEligible =
+                      certificate.eligible === true ||
+                      student.certificateEligible === true ||
+                      finalEvaluation.certificateEligible === true;
+
+                    const certificateIssued =
+                      certificate.issued === true ||
+                      certificate.status === "issued" ||
+                      student.certificateIssued === true ||
+                      student.certificateStatus === "issued";
+
+                    const hasCompletedFinalEvaluation =
+                      finalEvaluation.status === "completed" ||
+                      student.finalEvaluationStatus === "completed";
+
+                    const certificateStatus =
+                      certificateIssued
+                        ? "issued"
+                        : certificateEligible
+                        ? "eligible"
+                        : hasCompletedFinalEvaluation
+                        ? "not_eligible"
+                        : "not_attempted";
+
+                    const courseStatusClass =
+                      courseStatus === "completed"
+                        ? "bg-emerald-50 text-emerald-700"
+                        : courseStatus === "in_progress"
+                        ? "bg-blue-50 text-blue-700"
+                        : "bg-slate-100 text-slate-500";
+
+                    const certificateStatusClass =
+                      certificateStatus === "issued"
+                        ? "bg-emerald-50 text-emerald-700"
+                        : certificateStatus === "eligible"
+                        ? "bg-blue-50 text-blue-700"
+                        : certificateStatus === "not_eligible"
+                        ? "bg-red-50 text-red-600"
+                        : "bg-slate-100 text-slate-500";
 
                     return (
                       <tr
@@ -660,6 +728,63 @@ export default function StudentMonitoring({ onNav }) {
 
                           </div>
 
+                        </td>
+
+                        {/* ==================================
+                            COURSE STATUS
+                        ================================== */}
+
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col gap-1">
+                            <span
+                              className={`badge text-xs w-fit ${courseStatusClass}`}
+                            >
+                              {courseStatus === "completed"
+                                ? "Completed"
+                                : courseStatus === "in_progress"
+                                ? "In Progress"
+                                : "Not Started"}
+                            </span>
+
+                            <span className="text-xs text-slate-400">
+                              {completedTopics}/{totalTopics} topics
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* ==================================
+                            CERTIFICATE STATUS
+                        ================================== */}
+
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col gap-1">
+                            <span
+                              className={`badge text-xs w-fit ${certificateStatusClass}`}
+                            >
+                              {certificateStatus === "issued"
+                                ? "Issued"
+                                : certificateStatus === "eligible"
+                                ? "Eligible"
+                                : certificateStatus === "not_eligible"
+                                ? "Not Eligible"
+                                : "Not Attempted"}
+                            </span>
+
+                            {certificate.issuedAt && (
+                              <span className="text-xs text-slate-400">
+                                Issued:{" "}
+                                {new Date(
+                                  certificate.issuedAt
+                                ).toLocaleDateString()}
+                              </span>
+                            )}
+
+                            {certificate.certificateId && (
+                              <span className="text-xs text-slate-400">
+                                ID: {certificate.certificateId}
+                              </span>
+                            )}
+                          </div>
                         </td>
 
                         {/* ==================================

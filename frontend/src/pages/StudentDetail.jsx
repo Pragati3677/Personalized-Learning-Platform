@@ -409,6 +409,51 @@ export default function StudentDetail({
       : [];
 
   // ==========================================================
+  // COURSE PROGRESS, ASSESSMENT HISTORY & FINAL EVALUATION
+  // ==========================================================
+
+  const topicProgress = Array.isArray(student.topicProgress)
+    ? student.topicProgress
+    : [];
+
+  const completedTopics = topicProgress.filter(
+    (topic) => topic.status === "completed"
+  );
+
+  const incompleteTopics = topicProgress.filter(
+    (topic) => topic.status !== "completed"
+  );
+
+  const assessmentHistory = Array.isArray(student.assessmentHistory)
+    ? student.assessmentHistory
+    : [];
+
+  const improvement = student.improvement || {};
+
+  const finalEvaluation = student.finalEvaluation || {};
+
+  const finalEvaluationAttempts = Array.isArray(
+    student.finalEvaluationAttempts
+  )
+    ? student.finalEvaluationAttempts
+    : [];
+
+  const certificate = student.certificate || {
+    eligible: Boolean(student.certificateEligible),
+    status: "unknown",
+    qualifyingScore: null,
+    requiredMarks: 96,
+  };
+
+  const formatDate = (value) => {
+    if (!value) return "—";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime())
+      ? "—"
+      : date.toLocaleString();
+  };
+
+  // ==========================================================
   // PERFORMANCE CHART
   // ==========================================================
 
@@ -1118,6 +1163,303 @@ export default function StudentDetail({
         </div>
 
       )}
+
+      {/* ======================================================
+          JAVA COURSE TOPIC PROGRESS
+      ====================================================== */}
+
+      <div className="card p-5">
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
+          <div>
+            <h3 className="font-700 text-slate-900">Java Course Progress</h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Completion is based on the 18 required Java topics.
+            </p>
+          </div>
+          <span className="badge bg-indigo-50 text-indigo-700">
+            {completedTopics.length}/{topicProgress.length || 18} Completed
+          </span>
+        </div>
+
+        <div className="w-full h-2 rounded-full bg-slate-100 mb-5 overflow-hidden">
+          <div
+            className="h-full rounded-full bg-indigo-600"
+            style={{
+              width: `${Math.min(
+                100,
+                Math.max(0, Number(student.progress) || 0)
+              )}%`,
+            }}
+          />
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-3">
+          {topicProgress.length > 0 ? (
+            topicProgress.map((topic, index) => {
+              const isCompleted = topic.status === "completed";
+              return (
+                <div
+                  key={`${topic.topic}-${index}`}
+                  className="flex items-center justify-between gap-3 p-3 rounded-xl border border-slate-100"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-slate-800">
+                      {topic.topic}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {topic.completedLessons ?? 0}/
+                      {topic.totalLessons ?? 0} lessons ·{" "}
+                      {Number(topic.progressPercentage) || 0}%
+                    </p>
+                  </div>
+                  <span
+                    className={`badge text-xs flex-shrink-0 ${
+                      isCompleted
+                        ? "bg-emerald-50 text-emerald-700"
+                        : topic.status === "in_progress"
+                        ? "bg-amber-50 text-amber-700"
+                        : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    {isCompleted
+                      ? "Completed"
+                      : topic.status === "in_progress"
+                      ? "In Progress"
+                      : "Not Started"}
+                  </span>
+                </div>
+              );
+            })
+          ) : (
+            <p className="text-sm text-slate-400">
+              Topic progress has not been recorded yet.
+            </p>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 mt-5">
+          <div className="rounded-xl bg-emerald-50 p-3">
+            <p className="text-2xl font-bold text-emerald-700">
+              {completedTopics.length}
+            </p>
+            <p className="text-xs text-emerald-700">Completed Topics</p>
+          </div>
+          <div className="rounded-xl bg-amber-50 p-3">
+            <p className="text-2xl font-bold text-amber-700">
+              {incompleteTopics.length}
+            </p>
+            <p className="text-xs text-amber-700">Remaining Topics</p>
+          </div>
+        </div>
+      </div>
+
+      {/* ======================================================
+          ASSESSMENT HISTORY & IMPROVEMENT
+      ====================================================== */}
+
+      <div className="card p-5">
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
+          <div>
+            <h3 className="font-700 text-slate-900">Assessment History</h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Previous AI assessment results and score changes.
+            </p>
+          </div>
+          <span className="badge bg-indigo-50 text-indigo-700">
+            {assessmentHistory.length} Attempt(s)
+          </span>
+        </div>
+
+        {improvement.status !== "insufficient_data" &&
+        improvement.difference !== null &&
+        improvement.difference !== undefined ? (
+          <div className="rounded-xl bg-indigo-50 p-4 mb-4">
+            <p className="text-xs text-indigo-600 font-medium">
+              Score improvement
+            </p>
+            <p className="text-xl font-bold text-indigo-900">
+              {Number(improvement.difference) > 0 ? "+" : ""}
+              {improvement.difference}%
+            </p>
+            <p className="text-xs text-indigo-700 mt-1">
+              Previous: {improvement.previousScore ?? "—"}% · Latest:{" "}
+              {improvement.latestScore ?? "—"}%
+            </p>
+          </div>
+        ) : (
+          <p className="text-xs text-slate-400 mb-4">
+            More than one assessment is needed to calculate improvement.
+          </p>
+        )}
+
+        {assessmentHistory.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[620px]">
+              <thead>
+                <tr className="text-left border-b border-slate-200">
+                  {["Date", "Score", "Level", "Correct", "Wrong", "Time"].map(
+                    (heading) => (
+                      <th
+                        key={heading}
+                        className="py-3 px-2 text-xs text-slate-500 uppercase"
+                      >
+                        {heading}
+                      </th>
+                    )
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {assessmentHistory.map((attempt, index) => (
+                  <tr
+                    key={`${attempt.createdAt || "attempt"}-${index}`}
+                    className="border-b border-slate-100"
+                  >
+                    <td className="py-3 px-2 text-xs text-slate-600">
+                      {formatDate(attempt.createdAt)}
+                    </td>
+                    <td className="py-3 px-2 text-sm font-semibold">
+                      {attempt.percentage ?? "—"}%
+                    </td>
+                    <td className="py-3 px-2 text-xs capitalize">
+                      {attempt.performanceLevel || "—"}
+                    </td>
+                    <td className="py-3 px-2 text-sm text-emerald-700">
+                      {attempt.correctAnswers ?? 0}
+                    </td>
+                    <td className="py-3 px-2 text-sm text-red-600">
+                      {attempt.wrongAnswers ?? 0}
+                    </td>
+                    <td className="py-3 px-2 text-xs text-slate-600">
+                      {attempt.timeSpentMinutes ?? 0} min
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-sm text-slate-400">
+            No assessment history is available yet.
+          </p>
+        )}
+      </div>
+
+      {/* ======================================================
+          FINAL EVALUATION & CERTIFICATE
+      ====================================================== */}
+
+      <div className="grid lg:grid-cols-2 gap-5">
+        <div className="card p-5">
+          <h3 className="font-700 text-slate-900 mb-4">
+            Final Evaluation
+          </h3>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl bg-slate-50 p-4">
+              <p className="text-2xl font-bold text-indigo-700">
+                {finalEvaluation.score ?? "—"}
+                <span className="text-sm text-slate-400">/100</span>
+              </p>
+              <p className="text-xs text-slate-500 mt-1">Obtained Marks</p>
+            </div>
+            <div className="rounded-xl bg-slate-50 p-4">
+              <p className="text-2xl font-bold text-indigo-700">
+                {finalEvaluation.percentage ?? "—"}
+                {finalEvaluation.percentage != null ? "%" : ""}
+              </p>
+              <p className="text-xs text-slate-500 mt-1">Percentage</p>
+            </div>
+            <div className="rounded-xl bg-slate-50 p-4">
+              <p className="text-xl font-bold text-emerald-700">
+                {finalEvaluation.correctAnswers ?? 0}
+              </p>
+              <p className="text-xs text-slate-500 mt-1">Correct Answers</p>
+            </div>
+            <div className="rounded-xl bg-slate-50 p-4">
+              <p className="text-xl font-bold text-red-600">
+                {finalEvaluation.wrongAnswers ?? 0}
+              </p>
+              <p className="text-xs text-slate-500 mt-1">Wrong Answers</p>
+            </div>
+          </div>
+          <div className="mt-4 text-xs text-slate-500 space-y-1">
+            <p>Status: <strong>{finalEvaluation.status || "not_attempted"}</strong></p>
+            <p>
+              Attempted: {finalEvaluation.attemptedQuestions ?? 0}/
+              {finalEvaluation.totalQuestions ?? 30}
+            </p>
+            <p>Started: {formatDate(finalEvaluation.startedAt)}</p>
+            <p>Completed: {formatDate(finalEvaluation.completedAt)}</p>
+          </div>
+
+          {finalEvaluationAttempts.length > 0 && (
+            <div className="mt-4">
+              <h4 className="text-sm font-semibold text-slate-800 mb-2">
+                All Final Evaluation Attempts
+              </h4>
+              <div className="space-y-2">
+                {finalEvaluationAttempts.map((attempt, index) => (
+                  <div
+                    key={attempt.attemptId || attempt._id || index}
+                    className="flex items-center justify-between gap-2 border border-slate-100 rounded-lg p-3"
+                  >
+                    <div>
+                      <p className="text-xs font-medium text-slate-700">
+                        Attempt {index + 1} · {attempt.status || "unknown"}
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        {formatDate(attempt.completedAt || attempt.startedAt)}
+                      </p>
+                    </div>
+                    <p className="text-sm font-bold text-indigo-700">
+                      {attempt.score ?? attempt.obtainedMarks ?? "—"}/100
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="card p-5">
+          <h3 className="font-700 text-slate-900 mb-4">
+            Certificate Eligibility
+          </h3>
+          <div
+            className={`rounded-xl p-4 ${
+              certificate.eligible
+                ? "bg-emerald-50"
+                : "bg-slate-50"
+            }`}
+          >
+            <p
+              className={`text-lg font-bold ${
+                certificate.eligible
+                  ? "text-emerald-700"
+                  : "text-slate-700"
+              }`}
+            >
+              {certificate.eligible
+                ? "Eligible for Certificate"
+                : "Not Eligible Yet"}
+            </p>
+            <p className="text-xs text-slate-600 mt-2">
+              Required marks: {certificate.requiredMarks ?? 96}/100
+            </p>
+            <p className="text-xs text-slate-600 mt-1">
+              Qualifying score: {certificate.qualifyingScore ?? "—"}
+            </p>
+            <p className="text-xs text-slate-600 mt-1">
+              Certificate status: {certificate.status || "unknown"}
+            </p>
+          </div>
+          <p className="text-xs text-slate-500 mt-3">
+            Eligibility requires a completed final evaluation with at least
+            96 marks. Eligibility does not necessarily mean the certificate
+            has already been issued.
+          </p>
+        </div>
+      </div>
 
       {/* ======================================================
           AI RECOMMENDATION

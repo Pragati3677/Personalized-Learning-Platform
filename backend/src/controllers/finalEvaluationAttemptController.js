@@ -1,7 +1,7 @@
-
 const mongoose = require("mongoose");
 
 const FinalEvaluationAttempt = require("../models/FinalEvaluationAttempt");
+const Certificate = require("../models/Certificate");
 const FinalEvaluationQuestion = require("../models/FinalEvaluationQuestion");
 const StudentProgress = require("../models/StudentProgress");
 const Topic = require("../models/Topic");
@@ -636,10 +636,35 @@ const recordFinalEvaluationViolation = async (req, res) => {
 };
 
 // --------------------------------------------------
-// GET VERIFIED CERTIFICATE
+// GET AND ISSUE VERIFIED CERTIFICATE
 // --------------------------------------------------
 const getMyCertificate = async (req, res) => {
   try {
+    // Verify that all 18 required topics are completed.
+    const completedProgress = await StudentProgress.find({
+      studentId: req.user._id,
+      status: "completed",
+      topic: { $in: REQUIRED_TOPICS },
+    }).select("topic");
+
+    const completedTitles = new Set(
+      completedProgress.map((progress) => progress.topic)
+    );
+
+    const incompleteTopics = REQUIRED_TOPICS.filter(
+      (title) => !completedTitles.has(title)
+    );
+
+    if (incompleteTopics.length > 0) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Complete all 18 Java topics before receiving the certificate.",
+        incompleteTopics,
+      });
+    }
+
+    // Find the latest qualifying completed evaluation.
     const attempt = await FinalEvaluationAttempt.findOne({
       studentId: req.user._id,
       status: "completed",
@@ -673,30 +698,66 @@ const getMyCertificate = async (req, res) => {
         .slice(-8)
         .toUpperCase()}`;
 
+    // Create a permanent certificate record.
+    // If it already exists for this attempt, reuse it.
+    const issuedCertificate =
+      await Certificate.findOneAndUpdate(
+        {
+          studentId: req.user._id,
+          finalEvaluationAttemptId: attempt._id,
+        },
+        {
+          $setOnInsert: {
+            studentId: req.user._id,
+            finalEvaluationAttemptId: attempt._id,
+            certificateId,
+            courseName: "Java Programming",
+            score: attempt.obtainedMarks,
+            totalMarks: attempt.totalMarks || TOTAL_MARKS,
+            percentage: attempt.percentage,
+            issuedAt: new Date(),
+            status: "issued",
+          },
+        },
+        {
+          new: true,
+          upsert: true,
+          setDefaultsOnInsert: true,
+        }
+      );
+
     const certificate = {
       student: studentName,
       studentName,
-      course: "Java Programming",
-      courseName: "Java Programming",
-      date: completedAt,
+
+      course: issuedCertificate.courseName,
+      courseName: issuedCertificate.courseName,
+
+      date: issuedCertificate.issuedAt,
       completionDate: completedAt,
-      score: attempt.obtainedMarks,
-      finalScore: attempt.obtainedMarks,
-      totalMarks: attempt.totalMarks || TOTAL_MARKS,
-      percentage: attempt.percentage,
-      certId: certificateId,
-      certificateId,
+
+      score: issuedCertificate.score,
+      finalScore: issuedCertificate.score,
+      totalMarks: issuedCertificate.totalMarks,
+      percentage: issuedCertificate.percentage,
+
+      certId: issuedCertificate.certificateId,
+      certificateId: issuedCertificate.certificateId,
+
       department: "Computer Science & Engineering",
-      achievementLevel: "Certificate Eligible",
-      status: "Verified",
+      achievementLevel: "Certificate Earned",
+
+      status: "Issued",
+      issuedAt: issuedCertificate.issuedAt,
       verified: true,
     };
 
     return res.status(200).json({
       success: true,
+      message: "Certificate issued successfully.",
       certificate,
-      certificateId,
-      certId: certificateId,
+      certificateId: issuedCertificate.certificateId,
+      certId: issuedCertificate.certificateId,
       data: certificate,
     });
   } catch (error) {
@@ -704,7 +765,7 @@ const getMyCertificate = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Unable to load certificate.",
+      message: "Unable to load or issue certificate.",
     });
   }
 };
