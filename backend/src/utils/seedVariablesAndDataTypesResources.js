@@ -18,17 +18,10 @@ const resources = [
     description: "Learn variable declaration and initialization in Java.",
     type: "video",
     level: "basic",
-    url: "https://www.youtube.com/results?search_query=Java+variables+for+beginners",
+    url: " https://www.youtube.com/watch?v=NtmULLvsABc ",
     order: 1,
   },
-  {
-    title: "Java Data Types Explained",
-    description: "Introduction to Java primitive data types and String.",
-    type: "video",
-    level: "basic",
-    url: "https://www.youtube.com/results?search_query=Java+data+types+for+beginners",
-    order: 2,
-  },
+  
   {
     title: "Introduction to Variables",
     description: "Understand variable declaration, initialization, and naming rules.",
@@ -131,17 +124,10 @@ Write the Java statements and test them in your IDE.`,
     description: "Learn widening and narrowing conversions.",
     type: "video",
     level: "medium",
-    url: "https://www.youtube.com/results?search_query=Java+type+casting+widening+narrowing",
+    url: " https://www.youtube.com/watch?v=BGTx91t8q50&t=3889s ",
     order: 1,
   },
-  {
-    title: "Java Variable Scope",
-    description: "Learn about local, instance, and static variables.",
-    type: "video",
-    level: "medium",
-    url: "https://www.youtube.com/results?search_query=Java+local+instance+static+variables",
-    order: 2,
-  },
+  
   {
     title: "Type Conversion and Casting",
     description: "Understand automatic and explicit numeric conversion.",
@@ -241,17 +227,10 @@ Write a Java class that demonstrates one instance variable and one static variab
     description: "Explore arithmetic promotion and integer overflow.",
     type: "video",
     level: "advanced",
-    url: "https://www.youtube.com/results?search_query=Java+numeric+promotion+integer+overflow",
+    url: " https://www.youtube.com/watch?v=n60Dn0UsbEk&t=632s ",
     order: 1,
   },
-  {
-    title: "Java Pass-by-Value and Object References",
-    description: "Understand how Java passes primitive values and object references.",
-    type: "video",
-    level: "advanced",
-    url: "https://www.youtube.com/results?search_query=Java+pass+by+value+object+references",
-    order: 2,
-  },
+  
   {
     title: "Numeric Promotion and Integer Overflow",
     description: "Learn about numeric promotion and fixed-width integer behavior.",
@@ -350,6 +329,7 @@ Write Java examples to demonstrate your answers.`,
   },
 ];
 
+
 async function seedVariablesAndDataTypesResources() {
   if (!MONGODB_URI) {
     throw new Error("Missing MONGODB_URI or MONGO_URI in your .env file.");
@@ -366,8 +346,20 @@ async function seedVariablesAndDataTypesResources() {
     );
   }
 
-  let inserted = 0;
-  let updated = 0;
+  // Delete old videos ONLY for Variables & Data Types.
+  // Notes and worksheets will remain unchanged.
+  const deleteResult = await LearningResource.deleteMany({
+    topicId: topic._id,
+    type: "video",
+  });
+
+  console.log(
+    `Old video resources removed: ${deleteResult.deletedCount}`
+  );
+
+  // Insert or update resources from this seed file.
+  let insertedCount = 0;
+  let updatedCount = 0;
 
   for (const resource of resources) {
     const filter = {
@@ -382,6 +374,7 @@ async function seedVariablesAndDataTypesResources() {
       {
         $set: {
           ...resource,
+          url: resource.url?.trim(),
           topicId: topic._id,
           isActive: true,
         },
@@ -390,18 +383,18 @@ async function seedVariablesAndDataTypesResources() {
     );
 
     if (result.upsertedCount > 0) {
-      inserted++;
+      insertedCount++;
     } else if (result.modifiedCount > 0) {
-      updated++;
+      updatedCount++;
     }
   }
 
   console.log(`Topic: ${topic.title}`);
-  console.log(`Inserted: ${inserted}`);
-  console.log(`Updated: ${updated}`);
+  console.log(`Inserted: ${insertedCount}`);
+  console.log(`Updated: ${updatedCount}`);
   console.log(`Processed: ${resources.length}`);
-  console.log("Expected: 6 resources per level.");
 
+  // Display active resource counts.
   const counts = await LearningResource.aggregate([
     {
       $match: {
