@@ -43,20 +43,11 @@ const seedJavaBasicsResources = async () => {
         type: "video",
         level: "basic",
         content: "Learn the structure of a Java program and how to display output.",
-        url: "https://www.youtube.com/results?search_query=Java+program+structure+beginner+tutorial",
+        url: "  https://www.youtube.com/watch?v=NtmULLvsABc ",
         order: 1,
         isActive: true,
       },
-      {
-        title: "Writing Your First Java Program",
-        description: "Learn to write and run a simple Hello Java program.",
-        type: "video",
-        level: "basic",
-        content: "Practise writing, compiling, and running a simple Java program.",
-        url: "https://www.youtube.com/watch?v=zIdg7hkqNE0",
-        order: 2,
-        isActive: true,
-      },
+      
       {
         title: "Introduction to Java - Basic Notes",
         description: "Beginner-friendly introduction to Java and its characteristics.",
@@ -268,20 +259,11 @@ SELF-CHECK
         type: "video",
         level: "medium",
         content: "Focus on how source code becomes bytecode and how the JVM executes a class.",
-        url: "https://www.youtube.com/results?search_query=Java+compilation+JVM+program+structure+tutorial",
+        url: " https://www.youtube.com/watch?v=BGTx91t8q50&t=1475s ",
         order: 1,
         isActive: true,
       },
-      {
-        title: "Java Syntax and Common Errors",
-        description: "Practise Java syntax, identifiers, methods, and debugging.",
-        type: "video",
-        level: "medium",
-        content: "Identify syntax errors and understand compiler diagnostics.",
-        url: "https://www.youtube.com/results?search_query=Java+syntax+common+errors+tutorial",
-        order: 2,
-        isActive: true,
-      },
+      
       {
         title: "Java Execution Model - Intermediate Notes",
         description: "Understand source files, compilation, bytecode, JVM, and portability.",
@@ -487,20 +469,11 @@ SELF-CHECK
         type: "video",
         level: "advanced",
         content: "Study source code, bytecode, class loading, and JVM execution.",
-        url: "https://www.youtube.com/results?search_query=Java+bytecode+JVM+classloader+runtime+explained",
+        url: " https://www.youtube.com/watch?v=n60Dn0UsbEk ",
         order: 1,
         isActive: true,
       },
-      {
-        title: "Java Command-Line Arguments and Debugging",
-        description: "Practise command-line arguments, compiler diagnostics, and debugging.",
-        type: "video",
-        level: "advanced",
-        content: "Focus on command-line compilation, diagnosing errors, and robust entry points.",
-        url: "https://www.youtube.com/results?search_query=Java+command+line+arguments+compiler+debugging+tutorial",
-        order: 2,
-        isActive: true,
-      },
+      
       {
         title: "Java Compilation, Bytecode, and Runtime - Advanced Notes",
         description: "Detailed notes on compilation artifacts, class loading, and portability.",
@@ -686,8 +659,22 @@ SELF-CHECK
     }));
 
     // Insert or update matching records without deleting other resources.
-    let insertedCount = 0;
-    let updatedCount = 0;
+    
+// Remove old videos ONLY for Java Basics & Syntax.
+// Notes and worksheets will remain unchanged.
+const deleteResult = await LearningResource.deleteMany({
+  topicId: topic._id,
+  type: "video",
+});
+
+console.log(
+  `Old video resources removed: ${deleteResult.deletedCount}`
+);
+
+// Insert or update the resources from this seed file.
+let insertedCount = 0;
+let updatedCount = 0;
+
 
     for (const resource of documents) {
       const result = await LearningResource.updateOne(
