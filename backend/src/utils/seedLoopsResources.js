@@ -19,17 +19,10 @@ const resources = [
     description: "Learn how loops repeat statements in Java programs.",
     type: "video",
     level: "basic",
-    url: "https://www.youtube.com/results?search_query=Java+loops+for+beginners",
+    url: "https://www.youtube.com/watch?v=d6hNDJrj1bw",
     order: 1,
   },
-  {
-    title: "For Loop and While Loop in Java",
-    description: "Understand basic for and while loop syntax.",
-    type: "video",
-    level: "basic",
-    url: "https://www.youtube.com/results?search_query=Java+for+loop+while+loop+beginners",
-    order: 2,
-  },
+  
   {
     title: "Introduction to Loops",
     description: "Learn the purpose and basic structure of loops.",
@@ -138,17 +131,10 @@ Write and run your Java examples to verify your answers.`,
     description: "Learn how to use one loop inside another loop.",
     type: "video",
     level: "medium",
-    url: "https://www.youtube.com/results?search_query=Java+nested+loops+tutorial",
+    url: "https://youtu.be/bSrm9RXwBaI?si=NeBPqySd7U0AKpkY",
     order: 1,
   },
-  {
-    title: "Break and Continue in Java",
-    description: "Understand loop control statements.",
-    type: "video",
-    level: "medium",
-    url: "https://www.youtube.com/results?search_query=Java+break+continue+statements",
-    order: 2,
-  },
+  
   {
     title: "Nested Loops",
     description: "Understand inner and outer loop execution.",
@@ -259,17 +245,10 @@ Test your answers in Java.`,
     description: "Explore efficient iteration patterns and loop design.",
     type: "video",
     level: "advanced",
-    url: "https://www.youtube.com/results?search_query=Java+advanced+loop+patterns",
+    url: "https://www.youtube.com/watch?v=lsOOs5J8ycw",
     order: 1,
   },
-  {
-    title: "Enhanced For Loop and Iterators",
-    description: "Learn enhanced for loops and iterator-based traversal.",
-    type: "video",
-    level: "advanced",
-    url: "https://www.youtube.com/results?search_query=Java+enhanced+for+loop+Iterator",
-    order: 2,
-  },
+  
   {
     title: "Enhanced For Loops and Iteration",
     description: "Understand array and collection traversal using enhanced for loops.",
@@ -373,97 +352,128 @@ Implement your solutions and test boundary cases.`,
   },
 ];
 
+
 async function seedLoopsResources() {
-  if (!MONGODB_URI) {
-    throw new Error("Missing MONGODB_URI or MONGO_URI in your .env file.");
-  }
-
-  await mongoose.connect(MONGODB_URI);
-  console.log("Connected to MongoDB.");
-
-  const topic = await Topic.findOne({ title: TOPIC_TITLE });
-
-  if (!topic) {
-    throw new Error(
-      `Topic "${TOPIC_TITLE}" was not found. Check the exact title in MongoDB.`
-    );
-  }
-
-  let inserted = 0;
-  let updated = 0;
-
-  for (const resource of resources) {
-    const filter = {
-      topicId: topic._id,
-      title: resource.title,
-      type: resource.type,
-      level: resource.level,
-    };
-
-    const result = await LearningResource.updateOne(
-      filter,
-      {
-        $set: {
-          ...resource,
-          topicId: topic._id,
-          isActive: true,
-        },
-      },
-      { upsert: true, runValidators: true }
-    );
-
-    if (result.upsertedCount > 0) {
-      inserted++;
-    } else if (result.modifiedCount > 0) {
-      updated++;
+  try {
+    if (!MONGODB_URI) {
+      throw new Error(
+        "Missing MONGODB_URI or MONGO_URI in your .env file."
+      );
     }
-  }
 
-  console.log(`Topic: ${topic.title}`);
-  console.log(`Inserted: ${inserted}`);
-  console.log(`Updated: ${updated}`);
-  console.log(`Processed: ${resources.length}`);
+    await mongoose.connect(MONGODB_URI);
+    console.log("Connected to MongoDB.");
 
-  const counts = await LearningResource.aggregate([
-    {
-      $match: {
+    // Find the Loops topic
+    const topic = await Topic.findOne({
+      title: TOPIC_TITLE,
+    });
+
+    if (!topic) {
+      throw new Error(
+        `Topic "${TOPIC_TITLE}" was not found. Check the exact title in MongoDB.`
+      );
+    }
+
+    let insertedCount = 0;
+    let updatedCount = 0;
+
+    // Validate and insert/update resources
+    for (const resource of resources) {
+      if (!resource.title || !resource.type || !resource.level) {
+        throw new Error(
+          `Invalid resource found: ${resource.title || "Unknown resource"}`
+        );
+      }
+
+      const filter = {
+        topicId: topic._id,
+        title: resource.title,
+        type: resource.type,
+        level: resource.level,
+      };
+
+      const resourceData = {
+        ...resource,
+        url: resource.url?.trim(),
         topicId: topic._id,
         isActive: true,
-        level: { $in: ["basic", "medium", "advanced"] },
-      },
-    },
-    {
-      $group: {
-        _id: {
-          level: "$level",
-          type: "$type",
+      };
+
+      const result = await LearningResource.updateOne(
+        filter,
+        {
+          $set: resourceData,
         },
-        count: { $sum: 1 },
-      },
-    },
-    {
-      $sort: {
-        "_id.level": 1,
-        "_id.type": 1,
-      },
-    },
-  ]);
+        {
+          upsert: true,
+          runValidators: true,
+        }
+      );
 
-  console.log("Active resource counts by level and type:");
-  console.table(
-    counts.map((item) => ({
-      level: item._id.level,
-      type: item._id.type,
-      count: item.count,
-    }))
-  );
-}
+      if (result.upsertedCount > 0) {
+        insertedCount++;
+      } else if (result.modifiedCount > 0) {
+        updatedCount++;
+      }
+    }
 
-seedLoopsResources()
-  .catch((error) => {
+    // Display summary
+    console.log("\n========== LOOPS SEEDING SUMMARY ==========");
+    console.log("Topic:", topic.title);
+    console.log("Total Resources:", resources.length);
+    console.log("Inserted:", insertedCount);
+    console.log("Updated:", updatedCount);
+
+    // Count active resources by level and type
+    const counts = await LearningResource.aggregate([
+      {
+        $match: {
+          topicId: topic._id,
+          isActive: true,
+          level: {
+            $in: ["basic", "medium", "advanced"],
+          },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            level: "$level",
+            type: "$type",
+          },
+          count: {
+            $sum: 1,
+          },
+        },
+      },
+      {
+        $sort: {
+          "_id.level": 1,
+          "_id.type": 1,
+        },
+      },
+    ]);
+
+    console.log("\nActive Resource Counts:");
+    console.table(
+      counts.map((item) => ({
+        Level: item._id.level,
+        Type: item._id.type,
+        Count: item.count,
+      }))
+    );
+
+    console.log("===========================================\n");
+    console.log("Loops resources seeded successfully!");
+
+  } catch (error) {
     console.error("Seeding failed:", error.message);
     process.exitCode = 1;
-  })
-  .finally(async () => {
+  } finally {
     await mongoose.disconnect();
-  });
+    console.log("MongoDB disconnected.");
+  }
+}
+
+seedLoopsResources();
