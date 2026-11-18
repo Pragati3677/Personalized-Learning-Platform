@@ -19,17 +19,10 @@ const resources = [
     description: "Understand methods and why they make programs reusable.",
     type: "video",
     level: "basic",
-    url: "https://www.youtube.com/results?search_query=Java+methods+for+beginners",
+    url: "https://www.youtube.com/watch?v=IhtjMWXwNCc",
     order: 1,
   },
-  {
-    title: "Method Declaration and Calling",
-    description: "Learn method syntax, declaration, and method calls.",
-    type: "video",
-    level: "basic",
-    url: "https://www.youtube.com/results?search_query=Java+method+declaration+and+calling",
-    order: 2,
-  },
+  
   {
     title: "Method Syntax and Structure",
     description: "Learn the parts of a Java method.",
@@ -141,17 +134,10 @@ Compile and test your methods in Java.`,
     description: "Learn how methods can share a name with different parameter lists.",
     type: "video",
     level: "medium",
-    url: "https://www.youtube.com/results?search_query=Java+method+overloading+tutorial",
+    url: "https://youtu.be/t6e5AyYWLFw?si=YBrQSSlbhkXvcVpH",
     order: 1,
   },
-  {
-    title: "Static and Instance Methods",
-    description: "Understand class methods and object methods.",
-    type: "video",
-    level: "medium",
-    url: "https://www.youtube.com/results?search_query=Java+static+and+instance+methods",
-    order: 2,
-  },
+  
   {
     title: "Method Overloading",
     description: "Understand compile-time polymorphism through overloaded methods.",
@@ -271,17 +257,10 @@ Write and run examples to verify your answers.`,
     description: "Learn recursive calls and base cases.",
     type: "video",
     level: "advanced",
-    url: "https://www.youtube.com/results?search_query=Java+recursion+methods+tutorial",
+    url: "https://youtu.be/t6e5AyYWLFw?si=5UcJ0KINChKZrNOy",
     order: 1,
   },
-  {
-    title: "Varargs and Advanced Method Design",
-    description: "Explore variable-length arguments and method design.",
-    type: "video",
-    level: "advanced",
-    url: "https://www.youtube.com/results?search_query=Java+varargs+methods+tutorial",
-    order: 2,
-  },
+  
   {
     title: "Recursion and Base Cases",
     description: "Understand recursive problem-solving and termination.",
@@ -400,16 +379,22 @@ Compile, test, and explain your solutions.`,
   },
 ];
 
-async function seedMethodsResources() {
-  if (!MONGODB_URI) {
-    throw new Error("Missing MONGODB_URI or MONGO_URI in your .env file.");
-  }
 
+async function seedMethodsResources() {
   try {
+    if (!MONGODB_URI) {
+      throw new Error(
+        "Missing MONGODB_URI or MONGO_URI in your .env file."
+      );
+    }
+
     await mongoose.connect(MONGODB_URI);
     console.log("Connected to MongoDB.");
 
-    const topic = await Topic.findOne({ title: TOPIC_TITLE });
+    // Find Methods topic
+    const topic = await Topic.findOne({
+      title: TOPIC_TITLE,
+    });
 
     if (!topic) {
       throw new Error(
@@ -417,11 +402,29 @@ async function seedMethodsResources() {
       );
     }
 
-    let inserted = 0;
-    let updated = 0;
-    let unchanged = 0;
+    // Remove old videos only for Methods topic
+    const deletedVideos = await LearningResource.deleteMany({
+      topicId: topic._id,
+      type: "video",
+    });
 
+    console.log(
+      "Old Methods videos removed:",
+      deletedVideos.deletedCount
+    );
+
+    let insertedCount = 0;
+    let updatedCount = 0;
+    let unchangedCount = 0;
+
+    // Insert or update all resources
     for (const resource of resources) {
+      if (!resource.title || !resource.type || !resource.level) {
+        throw new Error(
+          `Invalid resource: ${resource.title || "Unknown resource"}`
+        );
+      }
+
       const filter = {
         topicId: topic._id,
         title: resource.title,
@@ -429,41 +432,53 @@ async function seedMethodsResources() {
         level: resource.level,
       };
 
+      const resourceData = {
+        ...resource,
+        url: resource.url?.trim(),
+        topicId: topic._id,
+        isActive: true,
+      };
+
       const result = await LearningResource.updateOne(
         filter,
         {
-          $set: {
-            ...resource,
-            topicId: topic._id,
-            isActive: true,
-          },
+          $set: resourceData,
         },
-        { upsert: true, runValidators: true }
+        {
+          upsert: true,
+          runValidators: true,
+        }
       );
 
-      if (result.upsertedCount > 0) inserted++;
-      else if (result.modifiedCount > 0) updated++;
-      else unchanged++;
+      if (result.upsertedCount > 0) {
+        insertedCount++;
+      } else if (result.modifiedCount > 0) {
+        updatedCount++;
+      } else {
+        unchangedCount++;
+      }
     }
 
-    console.log(`Topic: ${topic.title}`);
-    console.log(`Inserted: ${inserted}`);
-    console.log(`Updated: ${updated}`);
-    console.log(`Unchanged: ${unchanged}`);
-    console.log(`Total processed: ${resources.length}`);
-
+    // Verify active resources in MongoDB
     const counts = await LearningResource.aggregate([
       {
         $match: {
           topicId: topic._id,
           isActive: true,
-          level: { $in: ["basic", "medium", "advanced"] },
+          level: {
+            $in: ["basic", "medium", "advanced"],
+          },
         },
       },
       {
         $group: {
-          _id: { level: "$level", type: "$type" },
-          count: { $sum: 1 },
+          _id: {
+            level: "$level",
+            type: "$type",
+          },
+          count: {
+            $sum: 1,
+          },
         },
       },
       {
@@ -474,20 +489,35 @@ async function seedMethodsResources() {
       },
     ]);
 
-    console.log("Active resource counts by level and type:");
+    console.log("\n========== METHODS SEEDING SUMMARY ==========");
+    console.log("Topic:", topic.title);
+    console.log("Total resources:", resources.length);
+    console.log("Old videos deleted:", deletedVideos.deletedCount);
+    console.log("Inserted:", insertedCount);
+    console.log("Updated:", updatedCount);
+    console.log("Unchanged:", unchangedCount);
+
+    console.log("\nActive Resource Counts:");
+
     console.table(
       counts.map((item) => ({
-        level: item._id.level,
-        type: item._id.type,
-        count: item.count,
+        Level: item._id.level,
+        Type: item._id.type,
+        Count: item.count,
       }))
     );
+
+    console.log("\nMethods resources seeded successfully!");
+
+  } catch (error) {
+    console.error("Seeding failed:", error.message);
+    process.exitCode = 1;
   } finally {
-    await mongoose.disconnect();
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.disconnect();
+      console.log("MongoDB disconnected.");
+    }
   }
 }
 
-seedMethodsResources().catch((error) => {
-  console.error("Seeding failed:", error.message);
-  process.exitCode = 1;
-});
+seedMethodsResources();

@@ -1173,7 +1173,7 @@ export default function StudentDetail({
           <div>
             <h3 className="font-700 text-slate-900">Java Course Progress</h3>
             <p className="text-xs text-slate-500 mt-1">
-              Completion is based on the 18 required Java topics.
+              Lesson completion and AI Smart Engagement Quiz performance for all 18 Java topics.
             </p>
           </div>
           <span className="badge bg-indigo-50 text-indigo-700">
@@ -1193,40 +1193,81 @@ export default function StudentDetail({
           />
         </div>
 
-        <div className="grid sm:grid-cols-2 gap-3">
+        <div className="grid sm:grid-cols-2 gap-4">
           {topicProgress.length > 0 ? (
             topicProgress.map((topic, index) => {
               const isCompleted = topic.status === "completed";
+              const latestQuizScore = topic.latestQuizScore ?? topic.lastQuizScore;
+              const bestQuizScore = topic.bestQuizScore;
+              const averageQuizScore = topic.averageQuizScore;
+              const totalQuizAttempts =
+                topic.totalQuizAttempts ?? topic.quizAttempts ?? 0;
+
               return (
                 <div
                   key={`${topic.topic}-${index}`}
-                  className="flex items-center justify-between gap-3 p-3 rounded-xl border border-slate-100"
+                  className="p-4 rounded-xl border border-slate-100 bg-white"
                 >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-slate-800">
-                      {topic.topic}
-                    </p>
-                    <p className="text-xs text-slate-500 mt-1">
-                      {topic.completedLessons ?? 0}/
-                      {topic.totalLessons ?? 0} lessons ·{" "}
-                      {Number(topic.progressPercentage) || 0}%
-                    </p>
-                  </div>
-                  <span
-                    className={`badge text-xs flex-shrink-0 ${
-                      isCompleted
-                        ? "bg-emerald-50 text-emerald-700"
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-800">
+                        {topic.topic}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Lessons: {topic.completedLessons ?? 0}/
+                        {topic.totalLessons ?? 0} ·{" "}
+                        {Number(topic.progressPercentage) || 0}% complete
+                      </p>
+                    </div>
+                    <span
+                      className={`badge text-xs flex-shrink-0 ${
+                        isCompleted
+                          ? "bg-emerald-50 text-emerald-700"
+                          : topic.status === "in_progress"
+                          ? "bg-amber-50 text-amber-700"
+                          : "bg-slate-100 text-slate-500"
+                      }`}
+                    >
+                      {isCompleted
+                        ? "Completed"
                         : topic.status === "in_progress"
-                        ? "bg-amber-50 text-amber-700"
-                        : "bg-slate-100 text-slate-500"
-                    }`}
-                  >
-                    {isCompleted
-                      ? "Completed"
-                      : topic.status === "in_progress"
-                      ? "In Progress"
-                      : "Not Started"}
-                  </span>
+                        ? "In Progress"
+                        : "Not Started"}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 mt-4">
+                    <div className="rounded-lg bg-slate-50 p-3">
+                      <p className="text-lg font-bold text-indigo-700">
+                        {latestQuizScore != null
+                          ? `${Number(latestQuizScore).toFixed(1)}%`
+                          : "—"}
+                      </p>
+                      <p className="text-xs text-slate-500">Latest Quiz</p>
+                    </div>
+                    <div className="rounded-lg bg-slate-50 p-3">
+                      <p className="text-lg font-bold text-emerald-700">
+                        {bestQuizScore != null
+                          ? `${Number(bestQuizScore).toFixed(1)}%`
+                          : "—"}
+                      </p>
+                      <p className="text-xs text-slate-500">Best Quiz</p>
+                    </div>
+                    <div className="rounded-lg bg-slate-50 p-3">
+                      <p className="text-lg font-bold text-amber-700">
+                        {averageQuizScore != null
+                          ? `${Number(averageQuizScore).toFixed(1)}%`
+                          : "—"}
+                      </p>
+                      <p className="text-xs text-slate-500">Average Quiz</p>
+                    </div>
+                    <div className="rounded-lg bg-slate-50 p-3">
+                      <p className="text-lg font-bold text-slate-800">
+                        {totalQuizAttempts}
+                      </p>
+                      <p className="text-xs text-slate-500">Quiz Attempts</p>
+                    </div>
+                  </div>
                 </div>
               );
             })

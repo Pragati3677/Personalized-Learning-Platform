@@ -4,6 +4,7 @@ const EvaluationAnalysis = require("../models/EvaluationAnalysis");
 const PrerequisiteAttempt = require("../models/PrerequisiteAttempt");
 const FinalEvaluationAttempt = require("../models/FinalEvaluationAttempt");
 const Certificate = require("../models/Certificate");
+const EngagementAttempt = require("../models/EngagementAttempt");
 
 const REQUIRED_TOPICS = [
   "Java Basics & Syntax",
@@ -67,6 +68,10 @@ const getTeacherDashboard = async (req, res) => {
       });
     }
 
+    // --------------------------------------------------
+    // FETCH STUDENT PROGRESS
+    // --------------------------------------------------
+
     const progressRecords = await StudentProgress.find({
       studentId: { $in: studentIds },
       topic: { $in: REQUIRED_TOPICS },
@@ -74,11 +79,31 @@ const getTeacherDashboard = async (req, res) => {
       .sort({ updatedAt: -1 })
       .lean();
 
+    // --------------------------------------------------
+    // FETCH COMPLETED ENGAGEMENT QUIZ ATTEMPTS
+    // --------------------------------------------------
+
+    const engagementAttempts = await EngagementAttempt.find({
+      studentId: { $in: studentIds },
+      status: "completed",
+    })
+      .populate("topicId", "title")
+      .sort({ completedAt: -1, createdAt: -1 })
+      .lean();
+
+    // --------------------------------------------------
+    // FETCH ASSESSMENT HISTORY
+    // --------------------------------------------------
+
     const analysisRecords = await EvaluationAnalysis.find({
       studentId: { $in: studentIds },
     })
       .sort({ createdAt: -1 })
       .lean();
+
+    // --------------------------------------------------
+    // FETCH PREREQUISITE ATTEMPTS
+    // --------------------------------------------------
 
     const prerequisiteAttempts = await PrerequisiteAttempt.find({
       studentId: { $in: studentIds },
@@ -87,11 +112,19 @@ const getTeacherDashboard = async (req, res) => {
       .sort({ submittedAt: -1 })
       .lean();
 
+    // --------------------------------------------------
+    // FETCH FINAL EVALUATION ATTEMPTS
+    // --------------------------------------------------
+
     const finalAttempts = await FinalEvaluationAttempt.find({
       studentId: { $in: studentIds },
     })
       .sort({ startedAt: -1, createdAt: -1 })
       .lean();
+
+    // --------------------------------------------------
+    // FETCH CERTIFICATES
+    // --------------------------------------------------
 
     const issuedCertificates = await Certificate.find({
       studentId: { $in: studentIds },
@@ -99,14 +132,21 @@ const getTeacherDashboard = async (req, res) => {
       .sort({ issuedAt: -1, createdAt: -1 })
       .lean();
 
-    // Create lookup maps.
+    // --------------------------------------------------
+    // CREATE LOOKUP MAPS
+    // --------------------------------------------------
+
     const progressByStudent = new Map();
+    const engagementAttemptsByStudent = new Map();
     const analysisByStudent = new Map();
     const prerequisiteByStudent = new Map();
     const finalAttemptsByStudent = new Map();
     const certificatesByAttempt = new Map();
 
-    // Latest topic progress.
+    // --------------------------------------------------
+    // GROUP STUDENT PROGRESS
+    // --------------------------------------------------
+
     for (const record of progressRecords) {
       const studentId = String(record.studentId);
 
@@ -121,7 +161,34 @@ const getTeacherDashboard = async (req, res) => {
       }
     }
 
-    // Assessment history.
+    // --------------------------------------------------
+    // GROUP ENGAGEMENT ATTEMPTS BY STUDENT AND TOPIC
+    // --------------------------------------------------
+
+    for (const attempt of engagementAttempts) {
+      const studentId = String(attempt.studentId);
+      const topicTitle = attempt.topicId?.title;
+
+      if (!topicTitle) continue;
+
+      if (!engagementAttemptsByStudent.has(studentId)) {
+        engagementAttemptsByStudent.set(studentId, new Map());
+      }
+
+      const studentTopicAttempts =
+        engagementAttemptsByStudent.get(studentId);
+
+      if (!studentTopicAttempts.has(topicTitle)) {
+        studentTopicAttempts.set(topicTitle, []);
+      }
+
+      studentTopicAttempts.get(topicTitle).push(attempt);
+    }
+
+    // --------------------------------------------------
+    // GROUP ASSESSMENT HISTORY
+    // --------------------------------------------------
+
     for (const record of analysisRecords) {
       const studentId = String(record.studentId);
 
@@ -132,7 +199,10 @@ const getTeacherDashboard = async (req, res) => {
       analysisByStudent.get(studentId).push(record);
     }
 
-    // Latest prerequisite attempt.
+    // --------------------------------------------------
+    // LATEST PREREQUISITE ATTEMPT
+    // --------------------------------------------------
+
     for (const attempt of prerequisiteAttempts) {
       const studentId = String(attempt.studentId);
 
@@ -141,7 +211,10 @@ const getTeacherDashboard = async (req, res) => {
       }
     }
 
-    // Final evaluation history.
+    // --------------------------------------------------
+    // GROUP FINAL EVALUATION HISTORY
+    // --------------------------------------------------
+
     for (const attempt of finalAttempts) {
       const studentId = String(attempt.studentId);
 
@@ -152,7 +225,10 @@ const getTeacherDashboard = async (req, res) => {
       finalAttemptsByStudent.get(studentId).push(attempt);
     }
 
-    // Issued certificates indexed by evaluation attempt.
+    // --------------------------------------------------
+    // INDEX CERTIFICATES
+    // --------------------------------------------------
+
     for (const certificate of issuedCertificates) {
       certificatesByAttempt.set(
         String(certificate.finalEvaluationAttemptId),
@@ -160,12 +236,18 @@ const getTeacherDashboard = async (req, res) => {
       );
     }
 
-    // Prepare each student's data.
+    // --------------------------------------------------
+    // PREPARE EACH STUDENT'S DATA
+    // --------------------------------------------------
+
     const studentData = students.map((student) => {
       const studentId = String(student._id);
 
       const topicMap =
         progressByStudent.get(studentId) || new Map();
+
+      const engagementTopicMap =
+        engagementAttemptsByStudent.get(studentId) || new Map();
 
       const assessmentHistory =
         analysisByStudent.get(studentId) || [];
@@ -182,32 +264,91 @@ const getTeacherDashboard = async (req, res) => {
       const studentFinalAttempts =
         finalAttemptsByStudent.get(studentId) || [];
 
-      // Topic-wise progress.
+      // --------------------------------------------------
+      // TOPIC-WISE LESSON AND QUIZ PROGRESS
+      // --------------------------------------------------
+
       const topicProgress = REQUIRED_TOPICS.map((title) => {
         const record = topicMap.get(title) || null;
 
+        const attempts =
+          engagementTopicMap.get(title) || [];
+
+        // Attempts are sorted newest first.
+        const quizScores = attempts
+          .map((attempt) => Number(attempt.percentage))
+          .filter(
+            (percentage) =>
+              Number.isFinite(percentage) &&
+              percentage >= 0 &&
+              percentage <= 100
+          );
+
+        const totalQuizAttempts = attempts.length;
+
+        const latestQuizScore =
+          quizScores.length > 0
+            ? quizScores[0]
+            : record?.lastQuizScore ?? null;
+
+        const bestQuizScore =
+          quizScores.length > 0
+            ? Math.max(...quizScores)
+            : record?.bestQuizScore ?? null;
+
+        const averageQuizScore =
+          quizScores.length > 0
+            ? Number(
+                (
+                  quizScores.reduce(
+                    (sum, score) => sum + score,
+                    0
+                  ) / quizScores.length
+                ).toFixed(2)
+              )
+            : null;
+
         return {
           topic: title,
+
           status: record?.status || "not_started",
+
           progressPercentage: Number(
             record?.progressPercentage || 0
           ),
+
           completedLessons: Number(
             record?.completedLessons || 0
           ),
+
           totalLessons: Number(
             record?.totalLessons || 0
           ),
-          bestQuizScore: record?.bestQuizScore ?? null,
-          lastQuizScore: record?.lastQuizScore ?? null,
-          quizAttempts: Number(record?.quizAttempts || 0),
+
+          bestQuizScore,
+
+          lastQuizScore: latestQuizScore,
+
+          averageQuizScore,
+
+          quizAttempts:
+            totalQuizAttempts > 0
+              ? totalQuizAttempts
+              : Number(record?.quizAttempts || 0),
+
           timeSpentMinutes: Number(
             record?.timeSpentMinutes || 0
           ),
+
           lastAccessedAt: record?.lastAccessedAt || null,
+
           completedAt: record?.completedAt || null,
         };
       });
+
+      // --------------------------------------------------
+      // COMPLETED TOPICS
+      // --------------------------------------------------
 
       const completedTopics = topicProgress.filter(
         (topic) => topic.status === "completed"
@@ -240,7 +381,10 @@ const getTeacherDashboard = async (req, res) => {
         ? "in_progress"
         : "not_started";
 
-      // Last activity.
+      // --------------------------------------------------
+      // LAST ACTIVITY
+      // --------------------------------------------------
+
       let lastAccessedAt = null;
 
       for (const topic of topicProgress) {
@@ -258,7 +402,10 @@ const getTeacherDashboard = async (req, res) => {
         ? formatLastActive(lastAccessedAt)
         : "Never";
 
-      // Latest assessment.
+      // --------------------------------------------------
+      // LATEST ASSESSMENT
+      // --------------------------------------------------
+
       const hasAnalysis = Boolean(latestAnalysis);
 
       const score = hasAnalysis
@@ -273,7 +420,10 @@ const getTeacherDashboard = async (req, res) => {
         );
       }
 
-      // Performance improvement.
+      // --------------------------------------------------
+      // PERFORMANCE IMPROVEMENT
+      // --------------------------------------------------
+
       const previousScore = previousAnalysis
         ? Number(previousAnalysis.percentage || 0)
         : null;
@@ -295,17 +445,24 @@ const getTeacherDashboard = async (req, res) => {
         }
       }
 
-      // Prerequisite evaluation.
+      // --------------------------------------------------
+      // PREREQUISITE EVALUATION
+      // --------------------------------------------------
+
       const prerequisite = latestPrerequisite
         ? {
             score: Number(latestPrerequisite.score || 0),
+
             totalMarks: Number(
               latestPrerequisite.totalMarks || 100
             ),
+
             percentage: Number(
               latestPrerequisite.percentage || 0
             ),
+
             status: latestPrerequisite.status,
+
             submittedAt:
               latestPrerequisite.submittedAt || null,
           }
@@ -317,7 +474,10 @@ const getTeacherDashboard = async (req, res) => {
             submittedAt: null,
           };
 
-      // Final evaluation.
+      // --------------------------------------------------
+      // FINAL EVALUATION
+      // --------------------------------------------------
+
       const latestFinalAttempt =
         studentFinalAttempts[0] || null;
 
@@ -346,22 +506,32 @@ const getTeacherDashboard = async (req, res) => {
       const finalEvaluation = latestFinalAttempt
         ? {
             attemptId: String(latestFinalAttempt._id),
+
             status: latestFinalAttempt.status,
+
             score: latestFinalAttempt.obtainedMarks ?? null,
+
             totalMarks:
               latestFinalAttempt.totalMarks || 100,
+
             percentage:
               latestFinalAttempt.percentage ?? null,
+
             correctAnswers:
               latestFinalAttempt.correctAnswers ?? 0,
+
             wrongAnswers:
               latestFinalAttempt.wrongAnswers ?? 0,
+
             attemptedQuestions:
               latestFinalAttempt.attemptedQuestions ?? 0,
+
             totalQuestions:
               latestFinalAttempt.totalQuestions || 30,
+
             startedAt:
               latestFinalAttempt.startedAt || null,
+
             completedAt:
               latestFinalAttempt.completedAt || null,
           }
@@ -383,7 +553,9 @@ const getTeacherDashboard = async (req, res) => {
 
       const certificate = {
         eligible: certificateEligible,
+
         issued: Boolean(issuedCertificate),
+
         status: issuedCertificate
           ? "issued"
           : certificateEligible
@@ -391,19 +563,27 @@ const getTeacherDashboard = async (req, res) => {
           : latestCompletedAttempt
           ? "not_eligible"
           : "not_attempted",
+
         eligibleAttemptId: eligibleAttempt
           ? String(eligibleAttempt._id)
           : null,
+
         qualifyingScore: eligibleAttempt
           ? Number(eligibleAttempt.obtainedMarks)
           : null,
+
         requiredMarks: CERTIFICATE_PASS_MARKS,
+
         certificateId:
           issuedCertificate?.certificateId || null,
+
         issuedAt: issuedCertificate?.issuedAt || null,
       };
 
-      // Strengths and weak topics.
+      // --------------------------------------------------
+      // STRENGTHS AND WEAK TOPICS
+      // --------------------------------------------------
+
       const weakTopics = Array.isArray(
         latestAnalysis?.weaknesses
       )
@@ -416,7 +596,10 @@ const getTeacherDashboard = async (req, res) => {
         ? latestAnalysis.strengths
         : [];
 
-      // Risk calculation.
+      // --------------------------------------------------
+      // RISK CALCULATION
+      // --------------------------------------------------
+
       const risk = calculateRisk({
         score,
         progressPercentage,
@@ -425,7 +608,10 @@ const getTeacherDashboard = async (req, res) => {
         courseCompleted,
       });
 
-      // Mentor recommendations.
+      // --------------------------------------------------
+      // MENTOR RECOMMENDATIONS
+      // --------------------------------------------------
+
       const mentorRecommendations = [];
 
       if (!courseCompleted && incompleteTopics.length > 0) {
@@ -485,18 +671,31 @@ const getTeacherDashboard = async (req, res) => {
         );
       }
 
-      // Assessment history.
+      // --------------------------------------------------
+      // FORMATTED ASSESSMENT HISTORY
+      // --------------------------------------------------
+
       const formattedAssessmentHistory =
         assessmentHistory.map((record) => ({
           percentage: Number(record.percentage || 0),
+
           performanceLevel:
             record.performanceLevel || "Not Available",
+
           correctAnswers: record.correctAnswers ?? 0,
+
           wrongAnswers: record.wrongAnswers ?? 0,
+
           totalQuestions: record.totalQuestions ?? 0,
+
           timeSpentMinutes: record.timeSpentMinutes ?? 0,
+
           createdAt: record.createdAt || null,
         }));
+
+      // --------------------------------------------------
+      // RETURN STUDENT DATA
+      // --------------------------------------------------
 
       return {
         id: student._id,
@@ -527,17 +726,26 @@ const getTeacherDashboard = async (req, res) => {
         latestAnalysis: latestAnalysis
           ? {
               percentage: latestAnalysis.percentage,
+
               performanceLevel:
                 latestAnalysis.performanceLevel,
+
               strengths: latestAnalysis.strengths || [],
+
               weaknesses: latestAnalysis.weaknesses || [],
+
               correctAnswers: latestAnalysis.correctAnswers,
+
               wrongAnswers: latestAnalysis.wrongAnswers,
+
               totalQuestions: latestAnalysis.totalQuestions,
+
               timeSpentMinutes:
                 latestAnalysis.timeSpentMinutes,
+
               analysisSummary:
                 latestAnalysis.analysisSummary,
+
               createdAt: latestAnalysis.createdAt,
             }
           : null,
@@ -556,13 +764,20 @@ const getTeacherDashboard = async (req, res) => {
         finalEvaluationAttempts: studentFinalAttempts.map(
           (attempt) => ({
             attemptId: String(attempt._id),
+
             status: attempt.status,
+
             obtainedMarks: attempt.obtainedMarks ?? null,
+
             totalMarks: attempt.totalMarks || 100,
+
             percentage: attempt.percentage ?? null,
+
             certificateEligible:
               Boolean(attempt.certificateEligible),
+
             startedAt: attempt.startedAt || null,
+
             completedAt: attempt.completedAt || null,
           })
         ),
@@ -575,7 +790,10 @@ const getTeacherDashboard = async (req, res) => {
       };
     });
 
-    // Dashboard summary.
+    // --------------------------------------------------
+    // DASHBOARD SUMMARY
+    // --------------------------------------------------
+
     const totalStudents = studentData.length;
 
     const studentsWithAnalysis = studentData.filter(
@@ -636,7 +854,10 @@ const getTeacherDashboard = async (req, res) => {
           )
         : 0;
 
-    // Performance distribution.
+    // --------------------------------------------------
+    // PERFORMANCE DISTRIBUTION
+    // --------------------------------------------------
+
     const performanceDistribution = {
       advanced: studentData.filter(
         (student) => student.level === "Advanced"
@@ -655,7 +876,10 @@ const getTeacherDashboard = async (req, res) => {
       ).length,
     };
 
-    // At-risk students.
+    // --------------------------------------------------
+    // AT-RISK STUDENTS
+    // --------------------------------------------------
+
     const riskOrder = {
       High: 1,
       Medium: 2,
@@ -674,7 +898,10 @@ const getTeacherDashboard = async (req, res) => {
       )
       .slice(0, 10);
 
-    // Completed students list.
+    // --------------------------------------------------
+    // COMPLETED STUDENTS LIST
+    // --------------------------------------------------
+
     const completedStudentList = completedStudents.map(
       (student) => ({
         id: student.id,
@@ -697,6 +924,10 @@ const getTeacherDashboard = async (req, res) => {
         certificateIssued: student.certificateIssued,
       })
     );
+
+    // --------------------------------------------------
+    // SEND RESPONSE
+    // --------------------------------------------------
 
     return res.status(200).json({
       success: true,
@@ -737,6 +968,7 @@ const getTeacherDashboard = async (req, res) => {
 // --------------------------------------------------
 // RISK CALCULATION
 // --------------------------------------------------
+
 const calculateRisk = ({
   score,
   progressPercentage,
@@ -784,6 +1016,7 @@ const calculateRisk = ({
 // --------------------------------------------------
 // FORMAT LAST ACTIVE
 // --------------------------------------------------
+
 const formatLastActive = (date) => {
   const lastDate = new Date(date);
 
@@ -831,6 +1064,7 @@ const formatLastActive = (date) => {
 // --------------------------------------------------
 // CAPITALIZE PERFORMANCE LEVEL
 // --------------------------------------------------
+
 const capitalizeLevel = (value) => {
   if (!value) {
     return "Not Available";
@@ -847,6 +1081,7 @@ const capitalizeLevel = (value) => {
 // --------------------------------------------------
 // EXPORT
 // --------------------------------------------------
+
 module.exports = {
   getTeacherDashboard,
 };
