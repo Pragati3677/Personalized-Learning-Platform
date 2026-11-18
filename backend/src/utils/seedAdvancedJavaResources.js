@@ -17,18 +17,11 @@ const resources = [
     title: "Introduction to Advanced Java Concepts",
     type: "video",
     level: "basic",
-    url: "https://www.youtube.com/results?search_query=Java+advanced+concepts+tutorial",
+    url: "https://youtu.be/Eex25gBotB0?si=7mBRZUSkswDm1_Lz",
     description: "Review advanced Java concepts and their applications.",
     order: 1,
   },
-  {
-    title: "Java Lambda Expressions",
-    type: "video",
-    level: "basic",
-    url: "https://www.youtube.com/results?search_query=Java+lambda+expressions+for+beginners",
-    description: "Learn concise functional-style expressions in Java.",
-    order: 2,
-  },
+  
   {
     title: "Advanced Java Fundamentals",
     type: "note",
@@ -71,18 +64,11 @@ const resources = [
     title: "Java Stream API Tutorial",
     type: "video",
     level: "medium",
-    url: "https://www.youtube.com/results?search_query=Java+Stream+API+filter+map+reduce+tutorial",
+    url: "https://youtu.be/P8kJGjbGNv4?si=TsperGn5W_WyTOqd",
     description: "Learn to process collections using streams.",
     order: 1,
   },
-  {
-    title: "Optional Class and Method References",
-    type: "video",
-    level: "medium",
-    url: "https://www.youtube.com/results?search_query=Java+Optional+class+method+references+tutorial",
-    description: "Explore Optional and method references.",
-    order: 2,
-  },
+  
   {
     title: "Stream Operations",
     type: "note",
@@ -125,18 +111,11 @@ const resources = [
     title: "Java Multithreading and Concurrency",
     type: "video",
     level: "advanced",
-    url: "https://www.youtube.com/results?search_query=Java+concurrency+ExecutorService+CompletableFuture+tutorial",
+    url: "https://youtu.be/WkKT5M-ABnY?si=vsjp0yHrYfzj220h",
     description: "Explore concurrency and asynchronous programming.",
     order: 1,
   },
-  {
-    title: "Reflection and Annotations in Java",
-    type: "video",
-    level: "advanced",
-    url: "https://www.youtube.com/results?search_query=Java+reflection+annotations+tutorial",
-    description: "Learn runtime inspection and metadata.",
-    order: 2,
-  },
+  
   {
     title: "Concurrency Fundamentals",
     type: "note",
@@ -175,10 +154,10 @@ const resources = [
   },
 ];
 
-async function seedResources() {
+async function seedLoopsResources() {
   try {
     if (!MONGODB_URI) {
-      throw new Error("MONGODB_URI or MONGO_URI is missing from .env");
+      throw new Error("Missing MONGODB_URI or MONGO_URI in your .env file.");
     }
 
     await mongoose.connect(MONGODB_URI);
@@ -187,16 +166,26 @@ async function seedResources() {
     const topic = await Topic.findOne({ title: TOPIC_TITLE });
 
     if (!topic) {
-      throw new Error(
-        `Topic "${TOPIC_TITLE}" was not found. Check the exact title in MongoDB.`
-      );
+      throw new Error(`Topic "${TOPIC_TITLE}" was not found.`);
     }
 
-    let inserted = 0;
-    let updated = 0;
-    let unchanged = 0;
+    // Remove old videos belonging only to the Loops topic
+    const deletedVideos = await LearningResource.deleteMany({
+      topicId: topic._id,
+      type: "video",
+    });
 
+    console.log("Old Loops videos removed:", deletedVideos.deletedCount);
+
+    let insertedCount = 0;
+    let updatedCount = 0;
+
+    // Insert or update all 15 resources
     for (const resource of resources) {
+      if (!resource.title || !resource.type || !resource.level) {
+        throw new Error(`Invalid resource: ${resource.title || "Unknown"}`);
+      }
+
       const filter = {
         topicId: topic._id,
         title: resource.title,
@@ -204,41 +193,78 @@ async function seedResources() {
         level: resource.level,
       };
 
-      const existing = await LearningResource.findOne(filter).lean();
+      const resourceData = {
+        ...resource,
+        url: resource.url?.trim(),
+        topicId: topic._id,
+        isActive: true,
+      };
 
       const result = await LearningResource.updateOne(
         filter,
-        {
-          $set: {
-            ...resource,
-            topicId: topic._id,
-            isActive: true,
-          },
-        },
+        { $set: resourceData },
         { upsert: true, runValidators: true }
       );
 
       if (result.upsertedCount > 0) {
-        inserted++;
-      } else if (existing && result.modifiedCount > 0) {
-        updated++;
-      } else {
-        unchanged++;
+        insertedCount++;
+      } else if (result.modifiedCount > 0) {
+        updatedCount++;
       }
     }
 
-    console.log(`Topic: ${topic.title}`);
-    console.log(`Inserted: ${inserted}`);
-    console.log(`Updated: ${updated}`);
-    console.log(`Unchanged: ${unchanged}`);
-    console.log(`Total resources processed: ${resources.length}`);
-    console.log("Advanced Java resources seeded successfully.");
+    // Verify actual active resources in MongoDB
+    const counts = await LearningResource.aggregate([
+      {
+        $match: {
+          topicId: topic._id,
+          isActive: true,
+          level: { $in: ["basic", "medium", "advanced"] },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            level: "$level",
+            type: "$type",
+          },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $sort: {
+          "_id.level": 1,
+          "_id.type": 1,
+        },
+      },
+    ]);
+
+    console.log("\n========== LOOPS SEEDING SUMMARY ==========");
+    console.log("Topic:", topic.title);
+    console.log("Total resources in seed file:", resources.length);
+    console.log("Old videos deleted:", deletedVideos.deletedCount);
+    console.log("Inserted:", insertedCount);
+    console.log("Updated:", updatedCount);
+
+    console.log("\nActive Resource Counts:");
+
+    console.table(
+      counts.map((item) => ({
+        Level: item._id.level,
+        Type: item._id.type,
+        Count: item.count,
+      }))
+    );
+
+    console.log("\nLoops resources seeded successfully!");
+
   } catch (error) {
     console.error("Seeding failed:", error.message);
     process.exitCode = 1;
   } finally {
     await mongoose.disconnect();
+    console.log("MongoDB disconnected.");
   }
 }
 
-seedResources();
+seedLoopsResources();
