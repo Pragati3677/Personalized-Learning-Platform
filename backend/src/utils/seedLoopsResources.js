@@ -131,7 +131,7 @@ Write and run your Java examples to verify your answers.`,
     description: "Learn how to use one loop inside another loop.",
     type: "video",
     level: "medium",
-    url: "https://youtu.be/bSrm9RXwBaI?si=NeBPqySd7U0AKpkY",
+    url: "https://youtu.be/0r1SfRoLuzU?si=MF7qHHFY1y2NBZX2",
     order: 1,
   },
   
@@ -356,34 +356,33 @@ Implement your solutions and test boundary cases.`,
 async function seedLoopsResources() {
   try {
     if (!MONGODB_URI) {
-      throw new Error(
-        "Missing MONGODB_URI or MONGO_URI in your .env file."
-      );
+      throw new Error("Missing MONGODB_URI or MONGO_URI in your .env file.");
     }
 
     await mongoose.connect(MONGODB_URI);
     console.log("Connected to MongoDB.");
 
-    // Find the Loops topic
-    const topic = await Topic.findOne({
-      title: TOPIC_TITLE,
-    });
+    const topic = await Topic.findOne({ title: TOPIC_TITLE });
 
     if (!topic) {
-      throw new Error(
-        `Topic "${TOPIC_TITLE}" was not found. Check the exact title in MongoDB.`
-      );
+      throw new Error(`Topic "${TOPIC_TITLE}" was not found.`);
     }
+
+    // Remove old videos belonging only to the Loops topic
+    const deletedVideos = await LearningResource.deleteMany({
+      topicId: topic._id,
+      type: "video",
+    });
+
+    console.log("Old Loops videos removed:", deletedVideos.deletedCount);
 
     let insertedCount = 0;
     let updatedCount = 0;
 
-    // Validate and insert/update resources
+    // Insert or update all 15 resources
     for (const resource of resources) {
       if (!resource.title || !resource.type || !resource.level) {
-        throw new Error(
-          `Invalid resource found: ${resource.title || "Unknown resource"}`
-        );
+        throw new Error(`Invalid resource: ${resource.title || "Unknown"}`);
       }
 
       const filter = {
@@ -402,13 +401,8 @@ async function seedLoopsResources() {
 
       const result = await LearningResource.updateOne(
         filter,
-        {
-          $set: resourceData,
-        },
-        {
-          upsert: true,
-          runValidators: true,
-        }
+        { $set: resourceData },
+        { upsert: true, runValidators: true }
       );
 
       if (result.upsertedCount > 0) {
@@ -418,22 +412,13 @@ async function seedLoopsResources() {
       }
     }
 
-    // Display summary
-    console.log("\n========== LOOPS SEEDING SUMMARY ==========");
-    console.log("Topic:", topic.title);
-    console.log("Total Resources:", resources.length);
-    console.log("Inserted:", insertedCount);
-    console.log("Updated:", updatedCount);
-
-    // Count active resources by level and type
+    // Verify actual active resources in MongoDB
     const counts = await LearningResource.aggregate([
       {
         $match: {
           topicId: topic._id,
           isActive: true,
-          level: {
-            $in: ["basic", "medium", "advanced"],
-          },
+          level: { $in: ["basic", "medium", "advanced"] },
         },
       },
       {
@@ -442,9 +427,7 @@ async function seedLoopsResources() {
             level: "$level",
             type: "$type",
           },
-          count: {
-            $sum: 1,
-          },
+          count: { $sum: 1 },
         },
       },
       {
@@ -455,7 +438,15 @@ async function seedLoopsResources() {
       },
     ]);
 
+    console.log("\n========== LOOPS SEEDING SUMMARY ==========");
+    console.log("Topic:", topic.title);
+    console.log("Total resources in seed file:", resources.length);
+    console.log("Old videos deleted:", deletedVideos.deletedCount);
+    console.log("Inserted:", insertedCount);
+    console.log("Updated:", updatedCount);
+
     console.log("\nActive Resource Counts:");
+
     console.table(
       counts.map((item) => ({
         Level: item._id.level,
@@ -464,8 +455,7 @@ async function seedLoopsResources() {
       }))
     );
 
-    console.log("===========================================\n");
-    console.log("Loops resources seeded successfully!");
+    console.log("\nLoops resources seeded successfully!");
 
   } catch (error) {
     console.error("Seeding failed:", error.message);
