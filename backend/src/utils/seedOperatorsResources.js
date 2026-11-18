@@ -18,17 +18,10 @@ const resources = [
     description: "Introduction to arithmetic, assignment, and comparison operators.",
     type: "video",
     level: "basic",
-    url: "https://www.youtube.com/results?search_query=Java+operators+for+beginners",
+    url: " https://www.youtube.com/watch?v=Tdq4fmDCJH8 ",
     order: 1,
   },
-  {
-    title: "Java Arithmetic Operators",
-    description: "Learn addition, subtraction, multiplication, division, and modulus.",
-    type: "video",
-    level: "basic",
-    url: "https://www.youtube.com/results?search_query=Java+arithmetic+operators",
-    order: 2,
-  },
+ 
   {
     title: "Introduction to Java Operators",
     description: "Understand the purpose of operators and arithmetic expressions.",
@@ -147,17 +140,10 @@ Write Java statements to verify your answers.`,
     description: "Learn logical AND, OR, and NOT operators.",
     type: "video",
     level: "medium",
-    url: "https://www.youtube.com/results?search_query=Java+logical+operators+AND+OR+NOT",
+    url: "https://www.youtube.com/watch?v=BGTx91t8q50&t=5735s",
     order: 1,
   },
-  {
-    title: "Bitwise and Shift Operators in Java",
-    description: "Explore bitwise operations and shift operators.",
-    type: "video",
-    level: "medium",
-    url: "https://www.youtube.com/results?search_query=Java+bitwise+and+shift+operators",
-    order: 2,
-  },
+  
   {
     title: "Logical Operators and Short-Circuit Evaluation",
     description: "Understand logical AND, OR, and NOT in boolean expressions.",
@@ -268,17 +254,10 @@ Test your answers using a Java program.`,
     description: "Analyze complex expressions and evaluation order.",
     type: "video",
     level: "advanced",
-    url: "https://www.youtube.com/results?search_query=Java+operator+precedence+evaluation+order",
+    url: "https://www.youtube.com/watch?v=fzip9Aml6og",
     order: 1,
   },
-  {
-    title: "Java Bit Manipulation Techniques",
-    description: "Explore bit masks, shifts, and common bit manipulation patterns.",
-    type: "video",
-    level: "advanced",
-    url: "https://www.youtube.com/results?search_query=Java+bit+manipulation+techniques",
-    order: 2,
-  },
+ 
   {
     title: "Numeric Promotion and Operator Evaluation",
     description: "Understand numeric promotion and Java expression evaluation.",
@@ -380,97 +359,145 @@ Write and run Java examples to verify your answers.`,
   },
 ];
 
+
 async function seedOperatorsResources() {
-  if (!MONGODB_URI) {
-    throw new Error("Missing MONGODB_URI or MONGO_URI in your .env file.");
-  }
-
-  await mongoose.connect(MONGODB_URI);
-  console.log("Connected to MongoDB.");
-
-  const topic = await Topic.findOne({ title: TOPIC_TITLE });
-
-  if (!topic) {
-    throw new Error(
-      `Topic "${TOPIC_TITLE}" was not found. Check the exact title in MongoDB.`
-    );
-  }
-
-  let inserted = 0;
-  let updated = 0;
-
-  for (const resource of resources) {
-    const filter = {
-      topicId: topic._id,
-      title: resource.title,
-      type: resource.type,
-      level: resource.level,
-    };
-
-    const result = await LearningResource.updateOne(
-      filter,
-      {
-        $set: {
-          ...resource,
-          topicId: topic._id,
-          isActive: true,
-        },
-      },
-      { upsert: true, runValidators: true }
-    );
-
-    if (result.upsertedCount > 0) {
-      inserted++;
-    } else if (result.modifiedCount > 0) {
-      updated++;
+  try {
+    // 1. Check MongoDB connection URL
+    if (!MONGODB_URI) {
+      throw new Error(
+        "Missing MONGODB_URI or MONGO_URI in your .env file."
+      );
     }
-  }
 
-  console.log(`Topic: ${topic.title}`);
-  console.log(`Inserted: ${inserted}`);
-  console.log(`Updated: ${updated}`);
-  console.log(`Processed: ${resources.length}`);
+    // 2. Connect to MongoDB
+    await mongoose.connect(MONGODB_URI);
+    console.log("Connected to MongoDB.");
 
-  const counts = await LearningResource.aggregate([
-    {
-      $match: {
+    // 3. Find the Operators topic
+    const topic = await Topic.findOne({
+      title: TOPIC_TITLE,
+    });
+
+    if (!topic) {
+      throw new Error(
+        `Topic "${TOPIC_TITLE}" was not found. Check its exact title in MongoDB.`
+      );
+    }
+
+    // 4. Delete old videos ONLY for Operators.
+    // Notes and worksheets will remain unchanged.
+    const deleteResult = await LearningResource.deleteMany({
+      topicId: topic._id,
+      type: "video",
+    });
+
+    console.log(
+      `Old video resources removed: ${deleteResult.deletedCount}`
+    );
+
+    // 5. Insert or update resources
+    let inserted = 0;
+    let updated = 0;
+    let unchanged = 0;
+
+    for (const resource of resources) {
+      const cleanResource = {
+        ...resource,
+        url: resource.url?.trim(),
         topicId: topic._id,
         isActive: true,
-        level: { $in: ["basic", "medium", "advanced"] },
-      },
-    },
-    {
-      $group: {
-        _id: {
-          level: "$level",
-          type: "$type",
+      };
+
+      const filter = {
+        topicId: topic._id,
+        title: resource.title,
+        type: resource.type,
+        level: resource.level,
+      };
+
+      const result = await LearningResource.updateOne(
+        filter,
+        {
+          $set: cleanResource,
         },
-        count: { $sum: 1 },
-      },
-    },
-    {
-      $sort: {
-        "_id.level": 1,
-        "_id.type": 1,
-      },
-    },
-  ]);
+        {
+          upsert: true,
+          runValidators: true,
+        }
+      );
 
-  console.log("Active resource counts by level and type:");
-  console.table(
-    counts.map((item) => ({
-      level: item._id.level,
-      type: item._id.type,
-      count: item.count,
-    }))
-  );
-}
+      if (result.upsertedCount > 0) {
+        inserted++;
+      } else if (result.modifiedCount > 0) {
+        updated++;
+      } else {
+        unchanged++;
+      }
+    }
 
-seedOperatorsResources()
-  .catch((error) => {
+    // 6. Display seeding summary
+    console.log("--------------------------------");
+    console.log(`Topic: ${topic.title}`);
+    console.log(`Inserted: ${inserted}`);
+    console.log(`Updated: ${updated}`);
+    console.log(`Unchanged: ${unchanged}`);
+    console.log(`Processed: ${resources.length}`);
+    console.log("--------------------------------");
+
+    // 7. Count active resources by level and type
+    const counts = await LearningResource.aggregate([
+      {
+        $match: {
+          topicId: topic._id,
+          isActive: true,
+          level: {
+            $in: ["basic", "medium", "advanced"],
+          },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            level: "$level",
+            type: "$type",
+          },
+          count: {
+            $sum: 1,
+          },
+        },
+      },
+      {
+        $sort: {
+          "_id.level": 1,
+          "_id.type": 1,
+        },
+      },
+    ]);
+
+    console.log("Active resource counts by level and type:");
+
+    console.table(
+      counts.map((item) => ({
+        level: item._id.level,
+        type: item._id.type,
+        count: item.count,
+      }))
+    );
+
+    console.log("Operators resources seeded successfully!");
+
+  } catch (error) {
     console.error("Seeding failed:", error.message);
     process.exitCode = 1;
-  })
-  .finally(async () => {
-    await mongoose.disconnect();
-  });
+
+  } finally {
+    // 8. Close MongoDB connection
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.disconnect();
+      console.log("MongoDB connection closed.");
+    }
+  }
+}
+
+// Run the seed function
+seedOperatorsResources();
