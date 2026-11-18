@@ -19,17 +19,10 @@ const resources = [
     description: "Understand abstraction and hiding implementation details.",
     type: "video",
     level: "basic",
-    url: "https://www.youtube.com/results?search_query=Java+abstraction+for+beginners",
+    url: "https://www.youtube.com/watch?v=-L9BcU6Xk2c",
     order: 1,
   },
-  {
-    title: "Abstract Classes and Methods",
-    description: "Learn the basics of abstract classes and abstract methods.",
-    type: "video",
-    level: "basic",
-    url: "https://www.youtube.com/results?search_query=Java+abstract+classes+and+methods+beginner",
-    order: 2,
-  },
+  
   {
     title: "Abstraction Fundamentals",
     description: "Learn how abstraction exposes essential behavior while hiding implementation details.",
@@ -134,17 +127,10 @@ Compile and test your examples.`,
     description: "Compare abstract classes and interfaces using Java examples.",
     type: "video",
     level: "medium",
-    url: "https://www.youtube.com/results?search_query=Java+abstract+class+vs+interface",
+    url: "https://youtu.be/qZEFslUVfx0?si=FxjYc3dApIyAPo8X",
     order: 1,
   },
-  {
-    title: "Implementing Multiple Interfaces",
-    description: "Learn how a class can implement several interfaces.",
-    type: "video",
-    level: "medium",
-    url: "https://www.youtube.com/results?search_query=Java+implementing+multiple+interfaces",
-    order: 2,
-  },
+  
   {
     title: "Abstract Classes vs Interfaces in Practice",
     description: "Understand when to use an abstract class or interface.",
@@ -256,17 +242,10 @@ Provide Java examples for your answers.`,
     description: "Explore interface contracts and maintainable abstractions.",
     type: "video",
     level: "advanced",
-    url: "https://www.youtube.com/results?search_query=Java+advanced+interface+design",
+    url: "https://youtu.be/W0Qv4UkCo6k?si=aFEU6yCWE15Y-XcG",
     order: 1,
   },
-  {
-    title: "Abstraction and Dependency Inversion",
-    description: "Learn how abstractions reduce coupling between application components.",
-    type: "video",
-    level: "advanced",
-    url: "https://www.youtube.com/results?search_query=Java+abstraction+dependency+inversion+principle",
-    order: 2,
-  },
+  
   {
     title: "Designing Effective Abstractions",
     description: "Learn how to create useful interfaces and abstract types.",
@@ -361,94 +340,111 @@ Explain how your design allows implementations to change without rewriting the c
   },
 ];
 
-async function seedAbstractionResources() {
+async function seedVariablesAndDataTypesResources() {
   if (!MONGODB_URI) {
     throw new Error("Missing MONGODB_URI or MONGO_URI in your .env file.");
   }
 
-  try {
-    await mongoose.connect(MONGODB_URI);
-    console.log("Connected to MongoDB.");
+  await mongoose.connect(MONGODB_URI);
+  console.log("Connected to MongoDB.");
 
-    const topic = await Topic.findOne({ title: TOPIC_TITLE });
+  const topic = await Topic.findOne({ title: TOPIC_TITLE });
 
-    if (!topic) {
-      throw new Error(
-        `Topic "${TOPIC_TITLE}" was not found. Check the exact title in MongoDB.`
-      );
-    }
+  if (!topic) {
+    throw new Error(
+      `Topic "${TOPIC_TITLE}" was not found. Check its exact title in MongoDB.`
+    );
+  }
 
-    let inserted = 0;
-    let updated = 0;
-    let unchanged = 0;
+  // Delete old videos ONLY for Variables & Data Types.
+  // Notes and worksheets will remain unchanged.
+  const deleteResult = await LearningResource.deleteMany({
+    topicId: topic._id,
+    type: "video",
+  });
 
-    for (const resource of resources) {
-      const filter = {
-        topicId: topic._id,
-        title: resource.title,
-        type: resource.type,
-        level: resource.level,
-      };
+  console.log(
+    `Old video resources removed: ${deleteResult.deletedCount}`
+  );
 
-      const result = await LearningResource.updateOne(
-        filter,
-        {
-          $set: {
-            ...resource,
-            topicId: topic._id,
-            isActive: true,
-          },
-        },
-        { upsert: true, runValidators: true }
-      );
+  // Insert or update resources from this seed file.
+  let insertedCount = 0;
+  let updatedCount = 0;
 
-      if (result.upsertedCount > 0) inserted++;
-      else if (result.modifiedCount > 0) updated++;
-      else unchanged++;
-    }
+  for (const resource of resources) {
+    const filter = {
+      topicId: topic._id,
+      title: resource.title,
+      type: resource.type,
+      level: resource.level,
+    };
 
-    console.log(`Topic: ${topic.title}`);
-    console.log(`Inserted: ${inserted}`);
-    console.log(`Updated: ${updated}`);
-    console.log(`Unchanged: ${unchanged}`);
-    console.log(`Total processed: ${resources.length}`);
-
-    const counts = await LearningResource.aggregate([
+    const result = await LearningResource.updateOne(
+      filter,
       {
-        $match: {
+        $set: {
+          ...resource,
+          url: resource.url?.trim(),
           topicId: topic._id,
           isActive: true,
-          level: { $in: ["basic", "medium", "advanced"] },
         },
       },
-      {
-        $group: {
-          _id: { level: "$level", type: "$type" },
-          count: { $sum: 1 },
-        },
-      },
-      {
-        $sort: {
-          "_id.level": 1,
-          "_id.type": 1,
-        },
-      },
-    ]);
-
-    console.log("Active resource counts by level and type:");
-    console.table(
-      counts.map((item) => ({
-        level: item._id.level,
-        type: item._id.type,
-        count: item.count,
-      }))
+      { upsert: true, runValidators: true }
     );
-  } finally {
-    await mongoose.disconnect();
+
+    if (result.upsertedCount > 0) {
+      insertedCount++;
+    } else if (result.modifiedCount > 0) {
+      updatedCount++;
+    }
   }
+
+  console.log(`Topic: ${topic.title}`);
+  console.log(`Inserted: ${insertedCount}`);
+  console.log(`Updated: ${updatedCount}`);
+  console.log(`Processed: ${resources.length}`);
+
+  // Display active resource counts.
+  const counts = await LearningResource.aggregate([
+    {
+      $match: {
+        topicId: topic._id,
+        isActive: true,
+        level: { $in: ["basic", "medium", "advanced"] },
+      },
+    },
+    {
+      $group: {
+        _id: {
+          level: "$level",
+          type: "$type",
+        },
+        count: { $sum: 1 },
+      },
+    },
+    {
+      $sort: {
+        "_id.level": 1,
+        "_id.type": 1,
+      },
+    },
+  ]);
+
+  console.log("Active resource counts by level and type:");
+  console.table(
+    counts.map((item) => ({
+      level: item._id.level,
+      type: item._id.type,
+      count: item.count,
+    }))
+  );
 }
 
-seedAbstractionResources().catch((error) => {
-  console.error("Seeding failed:", error.message);
-  process.exitCode = 1;
-});
+seedVariablesAndDataTypesResources()
+  .catch((error) => {
+    console.error("Seeding failed:", error.message);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await mongoose.disconnect();
+  });
