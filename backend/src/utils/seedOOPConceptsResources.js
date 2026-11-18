@@ -19,17 +19,10 @@ const resources = [
     description: "Learn the basics of object-oriented programming.",
     type: "video",
     level: "basic",
-    url: "https://www.youtube.com/results?search_query=Java+OOP+concepts+for+beginners",
+    url: "https://www.youtube.com/watch?v=tmXD7Kzun54",
     order: 1,
   },
-  {
-    title: "Four Pillars of OOP",
-    description: "Explore encapsulation, inheritance, polymorphism, and abstraction.",
-    type: "video",
-    level: "basic",
-    url: "https://www.youtube.com/results?search_query=Java+four+pillars+of+OOP",
-    order: 2,
-  },
+  
   {
     title: "OOP Fundamentals",
     description: "Understand classes, objects, and the purpose of OOP.",
@@ -125,17 +118,10 @@ Write short Java examples where appropriate.`,
     description: "Learn how Java access modifiers control visibility.",
     type: "video",
     level: "medium",
-    url: "https://www.youtube.com/results?search_query=Java+encapsulation+access+modifiers+tutorial",
+    url: "https://youtu.be/bSrm9RXwBaI?si=NeBPqySd7U0AKpkY",
     order: 1,
   },
-  {
-    title: "Abstract Classes and Interfaces",
-    description: "Compare abstract classes and interfaces in Java.",
-    type: "video",
-    level: "medium",
-    url: "https://www.youtube.com/results?search_query=Java+abstract+classes+and+interfaces",
-    order: 2,
-  },
+  
   {
     title: "Access Modifiers and Encapsulation",
     description: "Understand public, protected, package-private, and private access.",
@@ -231,17 +217,10 @@ Include code examples for at least two questions.`,
     description: "Learn object-oriented design principles for maintainable code.",
     type: "video",
     level: "advanced",
-    url: "https://www.youtube.com/results?search_query=SOLID+principles+Java+tutorial",
+    url: "https://youtu.be/bSrm9RXwBaI?si=ral4RIn0fuIImrIA",
     order: 1,
   },
-  {
-    title: "OOP Design and Composition",
-    description: "Explore composition, coupling, and reusable object design.",
-    type: "video",
-    level: "advanced",
-    url: "https://www.youtube.com/results?search_query=Java+object+composition+inheritance+design",
-    order: 2,
-  },
+  
   {
     title: "SOLID Object-Oriented Design",
     description: "Understand five principles that support maintainable software.",
@@ -331,16 +310,27 @@ Support your answers with short code examples or diagrams.`,
   },
 ];
 
+
 async function seedOOPConceptsResources() {
   if (!MONGODB_URI) {
-    throw new Error("Missing MONGODB_URI or MONGO_URI in your .env file.");
+    throw new Error(
+      "Missing MONGODB_URI or MONGO_URI in your .env file."
+    );
   }
 
-  try {
-    await mongoose.connect(MONGODB_URI);
-    console.log("Connected to MongoDB.");
+  let isConnected = false;
 
-    const topic = await Topic.findOne({ title: TOPIC_TITLE });
+  try {
+    // Connect to MongoDB
+    await mongoose.connect(MONGODB_URI);
+    isConnected = true;
+
+    console.log("Connected to MongoDB successfully.");
+
+    // Find OOP Concepts topic
+    const topic = await Topic.findOne({
+      title: TOPIC_TITLE,
+    });
 
     if (!topic) {
       throw new Error(
@@ -352,6 +342,7 @@ async function seedOOPConceptsResources() {
     let updated = 0;
     let unchanged = 0;
 
+    // Insert or update learning resources
     for (const resource of resources) {
       const filter = {
         topicId: topic._id,
@@ -369,32 +360,48 @@ async function seedOOPConceptsResources() {
             isActive: true,
           },
         },
-        { upsert: true, runValidators: true }
+        {
+          upsert: true,
+          runValidators: true,
+        }
       );
 
-      if (result.upsertedCount > 0) inserted++;
-      else if (result.modifiedCount > 0) updated++;
-      else unchanged++;
+      if (result.upsertedCount > 0) {
+        inserted++;
+      } else if (result.modifiedCount > 0) {
+        updated++;
+      } else {
+        unchanged++;
+      }
     }
 
-    console.log(`Topic: ${topic.title}`);
-    console.log(`Inserted: ${inserted}`);
-    console.log(`Updated: ${updated}`);
-    console.log(`Unchanged: ${unchanged}`);
-    console.log(`Total processed: ${resources.length}`);
+    console.log("\n========== OOP RESOURCE SEEDING ==========");
+    console.log("Topic:", topic.title);
+    console.log("Inserted:", inserted);
+    console.log("Updated:", updated);
+    console.log("Unchanged:", unchanged);
+    console.log("Total processed:", resources.length);
 
+    // Verify active resources
     const counts = await LearningResource.aggregate([
       {
         $match: {
           topicId: topic._id,
           isActive: true,
-          level: { $in: ["basic", "medium", "advanced"] },
+          level: {
+            $in: ["basic", "medium", "advanced"],
+          },
         },
       },
       {
         $group: {
-          _id: { level: "$level", type: "$type" },
-          count: { $sum: 1 },
+          _id: {
+            level: "$level",
+            type: "$type",
+          },
+          count: {
+            $sum: 1,
+          },
         },
       },
       {
@@ -405,7 +412,8 @@ async function seedOOPConceptsResources() {
       },
     ]);
 
-    console.log("Active resource counts by level and type:");
+    console.log("\nActive resource counts by level and type:");
+
     console.table(
       counts.map((item) => ({
         level: item._id.level,
@@ -413,12 +421,23 @@ async function seedOOPConceptsResources() {
         count: item.count,
       }))
     );
+
+    console.log("\nOOP Concepts resources seeded successfully!");
+
+  } catch (error) {
+    console.error("OOP resource seeding failed:", error);
+
+    throw error;
+
   } finally {
-    await mongoose.disconnect();
+    if (isConnected) {
+      await mongoose.disconnect();
+      console.log("MongoDB connection closed.");
+    }
   }
 }
 
 seedOOPConceptsResources().catch((error) => {
-  console.error("Seeding failed:", error.message);
+  console.error("Seeding process stopped:", error.message);
   process.exitCode = 1;
 });
