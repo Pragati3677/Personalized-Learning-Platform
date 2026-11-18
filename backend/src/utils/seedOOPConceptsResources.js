@@ -19,10 +19,10 @@ const resources = [
     description: "Learn the basics of object-oriented programming.",
     type: "video",
     level: "basic",
-    url: "https://www.youtube.com/watch?v=tmXD7Kzun54",
+    url: "https://www.youtube.com/embed/tmXD7Kzun54",
     order: 1,
   },
-  
+
   {
     title: "OOP Fundamentals",
     description: "Understand classes, objects, and the purpose of OOP.",
@@ -118,10 +118,10 @@ Write short Java examples where appropriate.`,
     description: "Learn how Java access modifiers control visibility.",
     type: "video",
     level: "medium",
-    url: "https://youtu.be/bSrm9RXwBaI?si=NeBPqySd7U0AKpkY",
+    url: "https://www.youtube.com/embed/bSrm9RXwBaI",
     order: 1,
   },
-  
+
   {
     title: "Access Modifiers and Encapsulation",
     description: "Understand public, protected, package-private, and private access.",
@@ -217,10 +217,10 @@ Include code examples for at least two questions.`,
     description: "Learn object-oriented design principles for maintainable code.",
     type: "video",
     level: "advanced",
-    url: "https://youtu.be/bSrm9RXwBaI?si=ral4RIn0fuIImrIA",
+    url: "https://www.youtube.com/embed/LqPl23MTK5o",
     order: 1,
   },
-  
+
   {
     title: "SOLID Object-Oriented Design",
     description: "Understand five principles that support maintainable software.",
@@ -310,6 +310,32 @@ Support your answers with short code examples or diagrams.`,
   },
 ];
 
+// Convert regular YouTube links into embeddable YouTube URLs.
+function convertToEmbedUrl(url) {
+  if (!url) return "";
+
+  try {
+    const parsedUrl = new URL(url);
+    let videoId = "";
+
+    if (parsedUrl.hostname.includes("youtu.be")) {
+      videoId = parsedUrl.pathname.split("/").filter(Boolean)[0] || "";
+    } else if (parsedUrl.hostname.includes("youtube.com")) {
+      if (parsedUrl.pathname === "/watch") {
+        videoId = parsedUrl.searchParams.get("v") || "";
+      } else if (parsedUrl.pathname.startsWith("/embed/")) {
+        videoId = parsedUrl.pathname.split("/")[2] || "";
+      }
+    }
+
+    return videoId
+      ? `https://www.youtube.com/embed/${videoId}`
+      : url;
+  } catch (error) {
+    console.error("Invalid YouTube URL:", url);
+    return url;
+  }
+}
 
 async function seedOOPConceptsResources() {
   if (!MONGODB_URI) {
@@ -321,20 +347,18 @@ async function seedOOPConceptsResources() {
   let isConnected = false;
 
   try {
-    // Connect to MongoDB
     await mongoose.connect(MONGODB_URI);
     isConnected = true;
 
-    console.log("Connected to MongoDB successfully.");
+    console.log("MongoDB connected successfully.");
 
-    // Find OOP Concepts topic
     const topic = await Topic.findOne({
       title: TOPIC_TITLE,
     });
 
     if (!topic) {
       throw new Error(
-        `Topic "${TOPIC_TITLE}" was not found. Check the exact title in MongoDB.`
+        `Topic "${TOPIC_TITLE}" was not found in MongoDB.`
       );
     }
 
@@ -342,8 +366,18 @@ async function seedOOPConceptsResources() {
     let updated = 0;
     let unchanged = 0;
 
-    // Insert or update learning resources
     for (const resource of resources) {
+      const updatedResource = {
+        ...resource,
+        topicId: topic._id,
+        isActive: true,
+      };
+
+      // Save video resources using YouTube embed URLs.
+      if (resource.type === "video") {
+        updatedResource.url = convertToEmbedUrl(resource.url);
+      }
+
       const filter = {
         topicId: topic._id,
         title: resource.title,
@@ -354,11 +388,7 @@ async function seedOOPConceptsResources() {
       const result = await LearningResource.updateOne(
         filter,
         {
-          $set: {
-            ...resource,
-            topicId: topic._id,
-            isActive: true,
-          },
+          $set: updatedResource,
         },
         {
           upsert: true,
@@ -373,6 +403,41 @@ async function seedOOPConceptsResources() {
       } else {
         unchanged++;
       }
+
+      if (resource.type === "video") {
+        console.log(`Video URL updated: ${resource.title}`);
+        console.log(updatedResource.url);
+      }
+    }
+
+    // Keep only the video listed in this seed file active for each level.
+    // Older videos are deactivated, not permanently deleted.
+    for (const level of ["basic", "medium", "advanced"]) {
+      const currentVideo = resources.find(
+        (resource) =>
+          resource.type === "video" && resource.level === level
+      );
+
+      if (currentVideo) {
+        const cleanupResult = await LearningResource.updateMany(
+          {
+            topicId: topic._id,
+            level,
+            type: "video",
+            title: { $ne: currentVideo.title },
+            isActive: true,
+          },
+          {
+            $set: { isActive: false },
+          }
+        );
+
+        if (cleanupResult.modifiedCount > 0) {
+          console.log(
+            `Deactivated ${cleanupResult.modifiedCount} old video(s) in ${level} section.`
+          );
+        }
+      }
     }
 
     console.log("\n========== OOP RESOURCE SEEDING ==========");
@@ -382,7 +447,6 @@ async function seedOOPConceptsResources() {
     console.log("Unchanged:", unchanged);
     console.log("Total processed:", resources.length);
 
-    // Verify active resources
     const counts = await LearningResource.aggregate([
       {
         $match: {
@@ -412,7 +476,7 @@ async function seedOOPConceptsResources() {
       },
     ]);
 
-    console.log("\nActive resource counts by level and type:");
+    console.log("\nActive resource counts:");
 
     console.table(
       counts.map((item) => ({
@@ -426,7 +490,6 @@ async function seedOOPConceptsResources() {
 
   } catch (error) {
     console.error("OOP resource seeding failed:", error);
-
     throw error;
 
   } finally {
