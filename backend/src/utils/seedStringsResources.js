@@ -19,17 +19,10 @@ const resources = [
     description: "Learn how to create and use String objects in Java.",
     type: "video",
     level: "basic",
-    url: "https://www.youtube.com/results?search_query=Java+Strings+for+beginners",
+    url: " https://www.youtube.com/watch?v=N0b8lRXtK_Y",
     order: 1,
   },
-  {
-    title: "String Declaration and Basic Operations",
-    description: "Understand String initialization, concatenation, and length.",
-    type: "video",
-    level: "basic",
-    url: "https://www.youtube.com/results?search_query=Java+String+declaration+concatenation+length",
-    order: 2,
-  },
+  
   {
     title: "String Basics",
     description: "Learn String declaration, initialization, and concatenation.",
@@ -129,17 +122,10 @@ Write and run Java examples to verify your answers.`,
     description: "Learn substring, indexOf, contains, replace, and trim.",
     type: "video",
     level: "medium",
-    url: "https://www.youtube.com/results?search_query=Java+String+methods+substring+indexOf+replace",
+    url: "https://youtu.be/vCRD36bG8xQ?si=ydIH7F1h6UQe2Y7b",
     order: 1,
   },
-  {
-    title: "StringBuilder and StringBuffer",
-    description: "Understand mutable character sequences in Java.",
-    type: "video",
-    level: "medium",
-    url: "https://www.youtube.com/results?search_query=Java+StringBuilder+StringBuffer+tutorial",
-    order: 2,
-  },
+  
   {
     title: "Common String Methods",
     description: "Explore useful methods for searching and transforming text.",
@@ -239,17 +225,10 @@ Run each example and observe the output.`,
     description: "Explore efficient text processing and regular expressions.",
     type: "video",
     level: "advanced",
-    url: "https://www.youtube.com/results?search_query=Java+advanced+String+processing+regular+expressions",
+    url: "https://www.youtube.com/watch?v=YFZai3fPUQI",
     order: 1,
   },
-  {
-    title: "String Performance and Best Practices",
-    description: "Learn efficient concatenation and safe String handling.",
-    type: "video",
-    level: "advanced",
-    url: "https://www.youtube.com/results?search_query=Java+String+performance+best+practices",
-    order: 2,
-  },
+  
   {
     title: "Regular Expressions with Strings",
     description: "Learn pattern matching, splitting, and replacement.",
@@ -350,15 +329,20 @@ Implement your answers in Java and test boundary cases.`,
 ];
 
 async function seedStringsResources() {
-  if (!MONGODB_URI) {
-    throw new Error("Missing MONGODB_URI or MONGO_URI in your .env file.");
-  }
-
   try {
+    if (!MONGODB_URI) {
+      throw new Error(
+        "Missing MONGODB_URI or MONGO_URI in your .env file."
+      );
+    }
+
     await mongoose.connect(MONGODB_URI);
     console.log("Connected to MongoDB.");
 
-    const topic = await Topic.findOne({ title: TOPIC_TITLE });
+    // Find Strings topic
+    const topic = await Topic.findOne({
+      title: TOPIC_TITLE,
+    });
 
     if (!topic) {
       throw new Error(
@@ -366,11 +350,29 @@ async function seedStringsResources() {
       );
     }
 
-    let inserted = 0;
-    let updated = 0;
-    let unchanged = 0;
+    // Remove old video records only for Strings
+    const deletedVideos = await LearningResource.deleteMany({
+      topicId: topic._id,
+      type: "video",
+    });
 
+    console.log(
+      "Old Strings videos removed:",
+      deletedVideos.deletedCount
+    );
+
+    let insertedCount = 0;
+    let updatedCount = 0;
+    let unchangedCount = 0;
+
+    // Insert or update all resources
     for (const resource of resources) {
+      if (!resource.title || !resource.type || !resource.level) {
+        throw new Error(
+          `Invalid resource: ${resource.title || "Unknown resource"}`
+        );
+      }
+
       const filter = {
         topicId: topic._id,
         title: resource.title,
@@ -378,41 +380,53 @@ async function seedStringsResources() {
         level: resource.level,
       };
 
+      const resourceData = {
+        ...resource,
+        url: resource.url?.trim(),
+        topicId: topic._id,
+        isActive: true,
+      };
+
       const result = await LearningResource.updateOne(
         filter,
         {
-          $set: {
-            ...resource,
-            topicId: topic._id,
-            isActive: true,
-          },
+          $set: resourceData,
         },
-        { upsert: true, runValidators: true }
+        {
+          upsert: true,
+          runValidators: true,
+        }
       );
 
-      if (result.upsertedCount > 0) inserted++;
-      else if (result.modifiedCount > 0) updated++;
-      else unchanged++;
+      if (result.upsertedCount > 0) {
+        insertedCount++;
+      } else if (result.modifiedCount > 0) {
+        updatedCount++;
+      } else {
+        unchangedCount++;
+      }
     }
 
-    console.log(`Topic: ${topic.title}`);
-    console.log(`Inserted: ${inserted}`);
-    console.log(`Updated: ${updated}`);
-    console.log(`Unchanged: ${unchanged}`);
-    console.log(`Total processed: ${resources.length}`);
-
+    // Verify active resources in MongoDB
     const counts = await LearningResource.aggregate([
       {
         $match: {
           topicId: topic._id,
           isActive: true,
-          level: { $in: ["basic", "medium", "advanced"] },
+          level: {
+            $in: ["basic", "medium", "advanced"],
+          },
         },
       },
       {
         $group: {
-          _id: { level: "$level", type: "$type" },
-          count: { $sum: 1 },
+          _id: {
+            level: "$level",
+            type: "$type",
+          },
+          count: {
+            $sum: 1,
+          },
         },
       },
       {
@@ -423,20 +437,33 @@ async function seedStringsResources() {
       },
     ]);
 
-    console.log("Active resource counts by level and type:");
+    console.log("\n========== STRINGS SEEDING SUMMARY ==========");
+    console.log("Topic:", topic.title);
+    console.log("Total resources:", resources.length);
+    console.log("Old videos deleted:", deletedVideos.deletedCount);
+    console.log("Inserted:", insertedCount);
+    console.log("Updated:", updatedCount);
+    console.log("Unchanged:", unchangedCount);
+
+    console.log("\nActive Resource Counts:");
+
     console.table(
       counts.map((item) => ({
-        level: item._id.level,
-        type: item._id.type,
-        count: item.count,
+        Level: item._id.level,
+        Type: item._id.type,
+        Count: item.count,
       }))
     );
+
+    console.log("\nStrings resources seeded successfully!");
+
+  } catch (error) {
+    console.error("Seeding failed:", error.message);
+    process.exitCode = 1;
   } finally {
     await mongoose.disconnect();
+    console.log("MongoDB disconnected.");
   }
 }
 
-seedStringsResources().catch((error) => {
-  console.error("Seeding failed:", error.message);
-  process.exitCode = 1;
-});
+seedStringsResources();
