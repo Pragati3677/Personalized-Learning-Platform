@@ -17,18 +17,11 @@ const resources = [
     title: "Introduction to Java Collections Framework",
     type: "video",
     level: "basic",
-    url: "https://www.youtube.com/results?search_query=Java+Collections+Framework+for+beginners",
+    url: "https://www.youtube.com/watch?v=mW2OO6d6_BE",
     description: "Introduction to collections and their importance in Java.",
     order: 1,
   },
-  {
-    title: "ArrayList and LinkedList in Java",
-    type: "video",
-    level: "basic",
-    url: "https://www.youtube.com/results?search_query=Java+ArrayList+LinkedList+tutorial",
-    description: "Learn how ArrayList and LinkedList store elements.",
-    order: 2,
-  },
+  
   {
     title: "Collections Framework Basics",
     type: "note",
@@ -71,18 +64,11 @@ const resources = [
     title: "HashSet and TreeSet in Java",
     type: "video",
     level: "medium",
-    url: "https://www.youtube.com/results?search_query=Java+HashSet+TreeSet+tutorial",
+    url: "https://youtu.be/mW2OO6d6_BE?si=7dyLo323hBEVfDrv",
     description: "Learn how Set implementations store unique elements.",
     order: 1,
   },
-  {
-    title: "HashMap and Map Interface",
-    type: "video",
-    level: "medium",
-    url: "https://www.youtube.com/results?search_query=Java+HashMap+Map+interface+tutorial",
-    description: "Understand key-value storage using HashMap.",
-    order: 2,
-  },
+  
   {
     title: "Set Interface and Set Implementations",
     type: "note",
@@ -125,18 +111,11 @@ const resources = [
     title: "Java Iterator and ListIterator",
     type: "video",
     level: "advanced",
-    url: "https://www.youtube.com/results?search_query=Java+Iterator+ListIterator+fail+fast+tutorial",
+    url: "https://youtu.be/VphowcSkBX4?si=H3UOKAbsxGAX_MxL",
     description: "Learn collection traversal and iterator behaviour.",
     order: 1,
   },
-  {
-    title: "Comparable and Comparator in Java",
-    type: "video",
-    level: "advanced",
-    url: "https://www.youtube.com/results?search_query=Java+Comparable+Comparator+sorting+tutorial",
-    description: "Explore natural ordering and custom sorting.",
-    order: 2,
-  },
+  
   {
     title: "Iterators and Safe Traversal",
     type: "note",
@@ -175,10 +154,10 @@ const resources = [
   },
 ];
 
-async function seedResources() {
+async function seedLoopsResources() {
   try {
     if (!MONGODB_URI) {
-      throw new Error("MONGODB_URI or MONGO_URI is missing from .env");
+      throw new Error("Missing MONGODB_URI or MONGO_URI in your .env file.");
     }
 
     await mongoose.connect(MONGODB_URI);
@@ -187,16 +166,26 @@ async function seedResources() {
     const topic = await Topic.findOne({ title: TOPIC_TITLE });
 
     if (!topic) {
-      throw new Error(
-        `Topic "${TOPIC_TITLE}" was not found. Check the exact title in MongoDB.`
-      );
+      throw new Error(`Topic "${TOPIC_TITLE}" was not found.`);
     }
 
-    let inserted = 0;
-    let updated = 0;
-    let unchanged = 0;
+    // Remove old videos belonging only to the Loops topic
+    const deletedVideos = await LearningResource.deleteMany({
+      topicId: topic._id,
+      type: "video",
+    });
 
+    console.log("Old Loops videos removed:", deletedVideos.deletedCount);
+
+    let insertedCount = 0;
+    let updatedCount = 0;
+
+    // Insert or update all 15 resources
     for (const resource of resources) {
+      if (!resource.title || !resource.type || !resource.level) {
+        throw new Error(`Invalid resource: ${resource.title || "Unknown"}`);
+      }
+
       const filter = {
         topicId: topic._id,
         title: resource.title,
@@ -204,41 +193,78 @@ async function seedResources() {
         level: resource.level,
       };
 
-      const existing = await LearningResource.findOne(filter).lean();
+      const resourceData = {
+        ...resource,
+        url: resource.url?.trim(),
+        topicId: topic._id,
+        isActive: true,
+      };
 
       const result = await LearningResource.updateOne(
         filter,
-        {
-          $set: {
-            ...resource,
-            topicId: topic._id,
-            isActive: true,
-          },
-        },
+        { $set: resourceData },
         { upsert: true, runValidators: true }
       );
 
       if (result.upsertedCount > 0) {
-        inserted++;
-      } else if (existing && result.modifiedCount > 0) {
-        updated++;
-      } else {
-        unchanged++;
+        insertedCount++;
+      } else if (result.modifiedCount > 0) {
+        updatedCount++;
       }
     }
 
-    console.log(`Topic: ${topic.title}`);
-    console.log(`Inserted: ${inserted}`);
-    console.log(`Updated: ${updated}`);
-    console.log(`Unchanged: ${unchanged}`);
-    console.log(`Total resources processed: ${resources.length}`);
-    console.log("Collections Framework resources seeded successfully.");
+    // Verify actual active resources in MongoDB
+    const counts = await LearningResource.aggregate([
+      {
+        $match: {
+          topicId: topic._id,
+          isActive: true,
+          level: { $in: ["basic", "medium", "advanced"] },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            level: "$level",
+            type: "$type",
+          },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $sort: {
+          "_id.level": 1,
+          "_id.type": 1,
+        },
+      },
+    ]);
+
+    console.log("\n========== LOOPS SEEDING SUMMARY ==========");
+    console.log("Topic:", topic.title);
+    console.log("Total resources in seed file:", resources.length);
+    console.log("Old videos deleted:", deletedVideos.deletedCount);
+    console.log("Inserted:", insertedCount);
+    console.log("Updated:", updatedCount);
+
+    console.log("\nActive Resource Counts:");
+
+    console.table(
+      counts.map((item) => ({
+        Level: item._id.level,
+        Type: item._id.type,
+        Count: item.count,
+      }))
+    );
+
+    console.log("\nLoops resources seeded successfully!");
+
   } catch (error) {
     console.error("Seeding failed:", error.message);
     process.exitCode = 1;
   } finally {
     await mongoose.disconnect();
+    console.log("MongoDB disconnected.");
   }
 }
 
-seedResources();
+seedLoopsResources();
