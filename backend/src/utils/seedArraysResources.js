@@ -19,17 +19,10 @@ const resources = [
     description: "Learn how arrays store multiple values of the same type.",
     type: "video",
     level: "basic",
-    url: "https://www.youtube.com/results?search_query=Java+arrays+for+beginners",
+    url: " https://www.youtube.com/watch?v=ajNs-dylWIM ",
     order: 1,
   },
-  {
-    title: "Array Declaration and Initialization",
-    description: "Learn how to declare, create, and initialize arrays.",
-    type: "video",
-    level: "basic",
-    url: "https://www.youtube.com/results?search_query=Java+array+declaration+initialization",
-    order: 2,
-  },
+  
   {
     title: "Array Basics",
     description: "Understand array declaration, indexing, and length.",
@@ -137,17 +130,10 @@ Write and run Java examples to check your answers.`,
     description: "Learn linear search and finding values in arrays.",
     type: "video",
     level: "medium",
-    url: "https://www.youtube.com/results?search_query=Java+linear+search+array+tutorial",
+    url: "https://youtu.be/18Zt5I4S45o?si=Z-yknQuFOswkTCTW",
     order: 1,
   },
-  {
-    title: "Sorting Arrays in Java",
-    description: "Learn basic sorting and the Arrays utility class.",
-    type: "video",
-    level: "medium",
-    url: "https://www.youtube.com/results?search_query=Java+Arrays.sort+sorting+tutorial",
-    order: 2,
-  },
+  
   {
     title: "Searching and Finding Array Elements",
     description: "Understand linear search and index tracking.",
@@ -255,17 +241,10 @@ Test your solutions in Java.`,
     description: "Learn multidimensional arrays and nested-loop traversal.",
     type: "video",
     level: "advanced",
-    url: "https://www.youtube.com/results?search_query=Java+2D+arrays+nested+loops",
+    url: "https://www.youtube.com/watch?v=enI_KyGLYPo",
     order: 1,
   },
-  {
-    title: "Array Algorithms and Complexity",
-    description: "Explore common array algorithms and their time complexity.",
-    type: "video",
-    level: "advanced",
-    url: "https://www.youtube.com/results?search_query=Java+array+algorithms+time+complexity",
-    order: 2,
-  },
+  
   {
     title: "Two-Dimensional and Jagged Arrays",
     description: "Understand matrices, nested arrays, and irregular row lengths.",
@@ -367,97 +346,139 @@ Implement and test your solutions in Java.`,
   },
 ];
 
+
 async function seedArraysResources() {
-  if (!MONGODB_URI) {
-    throw new Error("Missing MONGODB_URI or MONGO_URI in your .env file.");
-  }
-
-  await mongoose.connect(MONGODB_URI);
-  console.log("Connected to MongoDB.");
-
-  const topic = await Topic.findOne({ title: TOPIC_TITLE });
-
-  if (!topic) {
-    throw new Error(
-      `Topic "${TOPIC_TITLE}" was not found. Check the exact title in MongoDB.`
-    );
-  }
-
-  let inserted = 0;
-  let updated = 0;
-
-  for (const resource of resources) {
-    const filter = {
-      topicId: topic._id,
-      title: resource.title,
-      type: resource.type,
-      level: resource.level,
-    };
-
-    const result = await LearningResource.updateOne(
-      filter,
-      {
-        $set: {
-          ...resource,
-          topicId: topic._id,
-          isActive: true,
-        },
-      },
-      { upsert: true, runValidators: true }
-    );
-
-    if (result.upsertedCount > 0) {
-      inserted++;
-    } else if (result.modifiedCount > 0) {
-      updated++;
+  try {
+    if (!MONGODB_URI) {
+      throw new Error(
+        "Missing MONGODB_URI or MONGO_URI in your .env file."
+      );
     }
-  }
 
-  console.log(`Topic: ${topic.title}`);
-  console.log(`Inserted: ${inserted}`);
-  console.log(`Updated: ${updated}`);
-  console.log(`Processed: ${resources.length}`);
+    await mongoose.connect(MONGODB_URI);
+    console.log("Connected to MongoDB.");
 
-  const counts = await LearningResource.aggregate([
-    {
-      $match: {
+    // Find Arrays topic
+    const topic = await Topic.findOne({
+      title: TOPIC_TITLE,
+    });
+
+    if (!topic) {
+      throw new Error(
+        `Topic "${TOPIC_TITLE}" was not found. Check the exact title in MongoDB.`
+      );
+    }
+
+    // Remove old videos only for Arrays topic
+    const deletedVideos = await LearningResource.deleteMany({
+      topicId: topic._id,
+      type: "video",
+    });
+
+    console.log(
+      "Old Arrays videos removed:",
+      deletedVideos.deletedCount
+    );
+
+    let insertedCount = 0;
+    let updatedCount = 0;
+
+    // Insert or update resources
+    for (const resource of resources) {
+      if (!resource.title || !resource.type || !resource.level) {
+        throw new Error(
+          `Invalid resource: ${resource.title || "Unknown resource"}`
+        );
+      }
+
+      const filter = {
+        topicId: topic._id,
+        title: resource.title,
+        type: resource.type,
+        level: resource.level,
+      };
+
+      const resourceData = {
+        ...resource,
+        url: resource.url?.trim(),
         topicId: topic._id,
         isActive: true,
-        level: { $in: ["basic", "medium", "advanced"] },
-      },
-    },
-    {
-      $group: {
-        _id: {
-          level: "$level",
-          type: "$type",
+      };
+
+      const result = await LearningResource.updateOne(
+        filter,
+        {
+          $set: resourceData,
         },
-        count: { $sum: 1 },
-      },
-    },
-    {
-      $sort: {
-        "_id.level": 1,
-        "_id.type": 1,
-      },
-    },
-  ]);
+        {
+          upsert: true,
+          runValidators: true,
+        }
+      );
 
-  console.log("Active resource counts by level and type:");
-  console.table(
-    counts.map((item) => ({
-      level: item._id.level,
-      type: item._id.type,
-      count: item.count,
-    }))
-  );
-}
+      if (result.upsertedCount > 0) {
+        insertedCount++;
+      } else if (result.modifiedCount > 0) {
+        updatedCount++;
+      }
+    }
 
-seedArraysResources()
-  .catch((error) => {
+    // Verify active resources
+    const counts = await LearningResource.aggregate([
+      {
+        $match: {
+          topicId: topic._id,
+          isActive: true,
+          level: {
+            $in: ["basic", "medium", "advanced"],
+          },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            level: "$level",
+            type: "$type",
+          },
+          count: {
+            $sum: 1,
+          },
+        },
+      },
+      {
+        $sort: {
+          "_id.level": 1,
+          "_id.type": 1,
+        },
+      },
+    ]);
+
+    console.log("\n========== ARRAYS SEEDING SUMMARY ==========");
+    console.log("Topic:", topic.title);
+    console.log("Total resources:", resources.length);
+    console.log("Old videos deleted:", deletedVideos.deletedCount);
+    console.log("Inserted:", insertedCount);
+    console.log("Updated:", updatedCount);
+
+    console.log("\nActive Resource Counts:");
+
+    console.table(
+      counts.map((item) => ({
+        Level: item._id.level,
+        Type: item._id.type,
+        Count: item.count,
+      }))
+    );
+
+    console.log("\nArrays resources seeded successfully!");
+
+  } catch (error) {
     console.error("Seeding failed:", error.message);
     process.exitCode = 1;
-  })
-  .finally(async () => {
+  } finally {
     await mongoose.disconnect();
-  });
+    console.log("MongoDB disconnected.");
+  }
+}
+
+seedArraysResources();
