@@ -19,17 +19,10 @@ const resources = [
     description: "Understand polymorphism and its role in object-oriented programming.",
     type: "video",
     level: "basic",
-    url: "https://www.youtube.com/results?search_query=Java+polymorphism+for+beginners",
+    url: " https://www.youtube.com/watch?v=-L9BcU6Xk2c ",
     order: 1,
   },
-  {
-    title: "Method Overloading and Overriding",
-    description: "Learn the two common forms of method polymorphism in Java.",
-    type: "video",
-    level: "basic",
-    url: "https://www.youtube.com/results?search_query=Java+method+overloading+and+overriding",
-    order: 2,
-  },
+  
   {
     title: "Polymorphism Fundamentals",
     description: "Learn the meaning and benefits of polymorphism.",
@@ -147,17 +140,10 @@ Compile and run your examples.`,
     description: "Explore superclass references and overridden method execution.",
     type: "video",
     level: "medium",
-    url: "https://www.youtube.com/results?search_query=Java+runtime+polymorphism+dynamic+method+dispatch",
+    url: "https://youtu.be/KcdgiEbnglY?si=MNqQMjI1DV2dyASZ",
     order: 1,
   },
-  {
-    title: "Polymorphism Using Interfaces",
-    description: "Learn how interfaces enable flexible implementations.",
-    type: "video",
-    level: "medium",
-    url: "https://www.youtube.com/results?search_query=Java+polymorphism+using+interfaces",
-    order: 2,
-  },
+  
   {
     title: "Dynamic Method Dispatch",
     description: "Understand how Java chooses overridden methods at runtime.",
@@ -274,17 +260,10 @@ Write a program that calls each implementation through the same interface type.`
     description: "Explore polymorphism in extensible object-oriented designs.",
     type: "video",
     level: "advanced",
-    url: "https://www.youtube.com/results?search_query=Java+polymorphism+design+patterns",
+    url: "https://youtu.be/-L9BcU6Xk2c?si=wIEy2UtP8ep0G4yS",
     order: 1,
   },
-  {
-    title: "Generics and Polymorphic Design",
-    description: "Understand how generic types support reusable Java code.",
-    type: "video",
-    level: "advanced",
-    url: "https://www.youtube.com/results?search_query=Java+generics+polymorphism+tutorial",
-    order: 2,
-  },
+  
   {
     title: "Polymorphism and Substitutability",
     description: "Learn how polymorphic types support safe and extensible designs.",
@@ -382,94 +361,111 @@ Include Java examples and explain the design choices.`,
   },
 ];
 
-async function seedPolymorphismResources() {
+async function seedVariablesAndDataTypesResources() {
   if (!MONGODB_URI) {
     throw new Error("Missing MONGODB_URI or MONGO_URI in your .env file.");
   }
 
-  try {
-    await mongoose.connect(MONGODB_URI);
-    console.log("Connected to MongoDB.");
+  await mongoose.connect(MONGODB_URI);
+  console.log("Connected to MongoDB.");
 
-    const topic = await Topic.findOne({ title: TOPIC_TITLE });
+  const topic = await Topic.findOne({ title: TOPIC_TITLE });
 
-    if (!topic) {
-      throw new Error(
-        `Topic "${TOPIC_TITLE}" was not found. Check the exact title in MongoDB.`
-      );
-    }
+  if (!topic) {
+    throw new Error(
+      `Topic "${TOPIC_TITLE}" was not found. Check its exact title in MongoDB.`
+    );
+  }
 
-    let inserted = 0;
-    let updated = 0;
-    let unchanged = 0;
+  // Delete old videos ONLY for Variables & Data Types.
+  // Notes and worksheets will remain unchanged.
+  const deleteResult = await LearningResource.deleteMany({
+    topicId: topic._id,
+    type: "video",
+  });
 
-    for (const resource of resources) {
-      const filter = {
-        topicId: topic._id,
-        title: resource.title,
-        type: resource.type,
-        level: resource.level,
-      };
+  console.log(
+    `Old video resources removed: ${deleteResult.deletedCount}`
+  );
 
-      const result = await LearningResource.updateOne(
-        filter,
-        {
-          $set: {
-            ...resource,
-            topicId: topic._id,
-            isActive: true,
-          },
-        },
-        { upsert: true, runValidators: true }
-      );
+  // Insert or update resources from this seed file.
+  let insertedCount = 0;
+  let updatedCount = 0;
 
-      if (result.upsertedCount > 0) inserted++;
-      else if (result.modifiedCount > 0) updated++;
-      else unchanged++;
-    }
+  for (const resource of resources) {
+    const filter = {
+      topicId: topic._id,
+      title: resource.title,
+      type: resource.type,
+      level: resource.level,
+    };
 
-    console.log(`Topic: ${topic.title}`);
-    console.log(`Inserted: ${inserted}`);
-    console.log(`Updated: ${updated}`);
-    console.log(`Unchanged: ${unchanged}`);
-    console.log(`Total processed: ${resources.length}`);
-
-    const counts = await LearningResource.aggregate([
+    const result = await LearningResource.updateOne(
+      filter,
       {
-        $match: {
+        $set: {
+          ...resource,
+          url: resource.url?.trim(),
           topicId: topic._id,
           isActive: true,
-          level: { $in: ["basic", "medium", "advanced"] },
         },
       },
-      {
-        $group: {
-          _id: { level: "$level", type: "$type" },
-          count: { $sum: 1 },
-        },
-      },
-      {
-        $sort: {
-          "_id.level": 1,
-          "_id.type": 1,
-        },
-      },
-    ]);
-
-    console.log("Active resource counts by level and type:");
-    console.table(
-      counts.map((item) => ({
-        level: item._id.level,
-        type: item._id.type,
-        count: item.count,
-      }))
+      { upsert: true, runValidators: true }
     );
-  } finally {
-    await mongoose.disconnect();
+
+    if (result.upsertedCount > 0) {
+      insertedCount++;
+    } else if (result.modifiedCount > 0) {
+      updatedCount++;
+    }
   }
+
+  console.log(`Topic: ${topic.title}`);
+  console.log(`Inserted: ${insertedCount}`);
+  console.log(`Updated: ${updatedCount}`);
+  console.log(`Processed: ${resources.length}`);
+
+  // Display active resource counts.
+  const counts = await LearningResource.aggregate([
+    {
+      $match: {
+        topicId: topic._id,
+        isActive: true,
+        level: { $in: ["basic", "medium", "advanced"] },
+      },
+    },
+    {
+      $group: {
+        _id: {
+          level: "$level",
+          type: "$type",
+        },
+        count: { $sum: 1 },
+      },
+    },
+    {
+      $sort: {
+        "_id.level": 1,
+        "_id.type": 1,
+      },
+    },
+  ]);
+
+  console.log("Active resource counts by level and type:");
+  console.table(
+    counts.map((item) => ({
+      level: item._id.level,
+      type: item._id.type,
+      count: item.count,
+    }))
+  );
 }
 
-seedPolymorphismResources().catch((error) => {
-  console.error("Seeding failed:", error.message);
-  process.exitCode = 1;
-});
+seedVariablesAndDataTypesResources()
+  .catch((error) => {
+    console.error("Seeding failed:", error.message);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await mongoose.disconnect();
+  });
