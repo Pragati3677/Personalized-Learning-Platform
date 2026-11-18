@@ -19,16 +19,8 @@ const resources = [
     description: "Understand classes, objects, fields, and methods in Java.",
     type: "video",
     level: "basic",
-    url: "https://www.youtube.com/results?search_query=Java+classes+and+objects+for+beginners",
+    url: " https://www.youtube.com/watch?v=tmXD7Kzun54",
     order: 1,
-  },
-  {
-    title: "Creating Objects and Calling Methods",
-    description: "Learn how to create objects and access their methods.",
-    type: "video",
-    level: "basic",
-    url: "https://www.youtube.com/results?search_query=Java+creating+objects+and+calling+methods",
-    order: 2,
   },
   {
     title: "Classes and Objects Fundamentals",
@@ -144,16 +136,8 @@ Compile and test your examples in Java.`,
     description: "Explore parameterized constructors and overloaded constructors.",
     type: "video",
     level: "medium",
-    url: "https://www.youtube.com/results?search_query=Java+constructors+and+constructor+overloading",
+    url: "https://youtu.be/Znmz_WxMxp4?si=40xTH4f4KzEOX-tO",
     order: 1,
-  },
-  {
-    title: "The this Keyword in Java",
-    description: "Learn how this refers to the current object.",
-    type: "video",
-    level: "medium",
-    url: "https://www.youtube.com/results?search_query=Java+this+keyword+in+classes",
-    order: 2,
   },
   {
     title: "Constructor Overloading and Initialization",
@@ -269,16 +253,8 @@ Test valid and invalid inputs where appropriate.`,
     description: "Explore static fields, static methods, and instance initialization.",
     type: "video",
     level: "advanced",
-    url: "https://www.youtube.com/results?search_query=Java+static+members+object+lifecycle",
+    url: "https://www.youtube.com/watch?v=n60Dn0UsbEk",
     order: 1,
-  },
-  {
-    title: "Immutable Classes and Defensive Copying",
-    description: "Learn techniques for creating objects with stable state.",
-    type: "video",
-    level: "advanced",
-    url: "https://www.youtube.com/results?search_query=Java+immutable+classes+defensive+copying",
-    order: 2,
   },
   {
     title: "Static Members and Initialization Order",
@@ -398,16 +374,54 @@ Provide short Java examples for your answers.`,
   },
 ];
 
-async function seedClassesObjectsResources() {
-  if (!MONGODB_URI) {
-    throw new Error("Missing MONGODB_URI or MONGO_URI in your .env file.");
-  }
+// Convert regular YouTube links into embeddable YouTube URLs.
+function convertToEmbedUrl(url) {
+  if (!url) return "";
 
   try {
+    const parsedUrl = new URL(url.trim());
+    let videoId = "";
+
+    if (parsedUrl.hostname.includes("youtu.be")) {
+      videoId =
+        parsedUrl.pathname.split("/").filter(Boolean)[0] || "";
+    } else if (parsedUrl.hostname.includes("youtube.com")) {
+      if (parsedUrl.pathname === "/watch") {
+        videoId = parsedUrl.searchParams.get("v") || "";
+      } else if (parsedUrl.pathname.startsWith("/embed/")) {
+        videoId = parsedUrl.pathname.split("/")[2] || "";
+      }
+    }
+
+    return videoId
+      ? `https://www.youtube.com/embed/${videoId}`
+      : url.trim();
+  } catch (error) {
+    console.error("Invalid YouTube URL:", url, error.message);
+    return url.trim();
+  }
+}
+
+async function seedClassesObjectsResources() {
+  if (!MONGODB_URI) {
+    throw new Error(
+      "Missing MONGODB_URI or MONGO_URI in your .env file."
+    );
+  }
+
+  let isConnected = false;
+
+  try {
+    console.log("Starting MongoDB connection...");
+
     await mongoose.connect(MONGODB_URI);
+    isConnected = true;
+
     console.log("Connected to MongoDB.");
 
-    const topic = await Topic.findOne({ title: TOPIC_TITLE });
+    const topic = await Topic.findOne({
+      title: TOPIC_TITLE,
+    });
 
     if (!topic) {
       throw new Error(
@@ -419,7 +433,21 @@ async function seedClassesObjectsResources() {
     let updated = 0;
     let unchanged = 0;
 
+    // Insert or update all resources.
     for (const resource of resources) {
+      const updatedResource = {
+        ...resource,
+        topicId: topic._id,
+        isActive: true,
+      };
+
+      // Convert video URL into YouTube embed format.
+      if (resource.type === "video") {
+        updatedResource.url = convertToEmbedUrl(
+          resource.url
+        );
+      }
+
       const filter = {
         topicId: topic._id,
         title: resource.title,
@@ -430,38 +458,88 @@ async function seedClassesObjectsResources() {
       const result = await LearningResource.updateOne(
         filter,
         {
-          $set: {
-            ...resource,
-            topicId: topic._id,
-            isActive: true,
-          },
+          $set: updatedResource,
         },
-        { upsert: true, runValidators: true }
+        {
+          upsert: true,
+          runValidators: true,
+        }
       );
 
-      if (result.upsertedCount > 0) inserted++;
-      else if (result.modifiedCount > 0) updated++;
-      else unchanged++;
+      if (result.upsertedCount > 0) {
+        inserted++;
+      } else if (result.modifiedCount > 0) {
+        updated++;
+      } else {
+        unchanged++;
+      }
+
+      if (resource.type === "video") {
+        console.log(`Video saved: ${resource.title}`);
+        console.log("Embed URL:", updatedResource.url);
+      }
     }
 
-    console.log(`Topic: ${topic.title}`);
-    console.log(`Inserted: ${inserted}`);
-    console.log(`Updated: ${updated}`);
-    console.log(`Unchanged: ${unchanged}`);
-    console.log(`Total processed: ${resources.length}`);
+    // Deactivate older extra videos in each section.
+    let deactivated = 0;
 
+    for (const level of ["basic", "medium", "advanced"]) {
+      const currentVideo = resources.find(
+        (resource) =>
+          resource.type === "video" &&
+          resource.level === level
+      );
+
+      if (!currentVideo) continue;
+
+      const cleanupResult = await LearningResource.updateMany(
+        {
+          topicId: topic._id,
+          level,
+          type: "video",
+          title: { $ne: currentVideo.title },
+          isActive: true,
+        },
+        {
+          $set: {
+            isActive: false,
+          },
+        }
+      );
+
+      deactivated += cleanupResult.modifiedCount;
+    }
+
+    console.log(
+      "\n========== CLASSES & OBJECTS RESOURCE SEEDING =========="
+    );
+    console.log("Topic:", topic.title);
+    console.log("Inserted:", inserted);
+    console.log("Updated:", updated);
+    console.log("Unchanged:", unchanged);
+    console.log("Old videos deactivated:", deactivated);
+    console.log("Total processed:", resources.length);
+
+    // Display active resource counts.
     const counts = await LearningResource.aggregate([
       {
         $match: {
           topicId: topic._id,
           isActive: true,
-          level: { $in: ["basic", "medium", "advanced"] },
+          level: {
+            $in: ["basic", "medium", "advanced"],
+          },
         },
       },
       {
         $group: {
-          _id: { level: "$level", type: "$type" },
-          count: { $sum: 1 },
+          _id: {
+            level: "$level",
+            type: "$type",
+          },
+          count: {
+            $sum: 1,
+          },
         },
       },
       {
@@ -472,7 +550,10 @@ async function seedClassesObjectsResources() {
       },
     ]);
 
-    console.log("Active resource counts by level and type:");
+    console.log(
+      "\nActive resource counts by level and type:"
+    );
+
     console.table(
       counts.map((item) => ({
         level: item._id.level,
@@ -480,12 +561,27 @@ async function seedClassesObjectsResources() {
         count: item.count,
       }))
     );
+
+    console.log(
+      "\nClasses & Objects resources seeded successfully!"
+    );
+
+  } catch (error) {
+    console.error("Classes & Objects seeding failed:", error);
+    throw error;
+
   } finally {
-    await mongoose.disconnect();
+    if (isConnected) {
+      await mongoose.disconnect();
+      console.log("MongoDB connection closed.");
+    }
   }
 }
 
+// Start the seeding process.
+console.log("Starting Classes & Objects resource seeding...");
+
 seedClassesObjectsResources().catch((error) => {
-  console.error("Seeding failed:", error.message);
+  console.error("Seeding process stopped:", error);
   process.exitCode = 1;
 });
