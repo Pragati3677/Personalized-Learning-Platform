@@ -140,7 +140,7 @@ Write Java statements to verify your answers.`,
     description: "Learn logical AND, OR, and NOT operators.",
     type: "video",
     level: "medium",
-    url: "https://www.youtube.com/watch?v=BGTx91t8q50&t=5735s",
+    url: " https://youtu.be/pnn2VTSr1Ko?si=zn_pjCF7_6BCz87m ",
     order: 1,
   },
   

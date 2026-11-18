@@ -259,7 +259,7 @@ SELF-CHECK
         type: "video",
         level: "medium",
         content: "Focus on how source code becomes bytecode and how the JVM executes a class.",
-        url: " https://www.youtube.com/watch?v=BGTx91t8q50&t=1475s ",
+        url: " https://youtu.be/bm0OyhwFDuY?si=rUMCwqSr9Pz3-SHQ ",
         order: 1,
         isActive: true,
       },
@@ -674,7 +674,6 @@ console.log(
 // Insert or update the resources from this seed file.
 let insertedCount = 0;
 let updatedCount = 0;
-
 
     for (const resource of documents) {
       const result = await LearningResource.updateOne(

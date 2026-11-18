@@ -18,17 +18,10 @@ const resources = [
     description: "Learn how to execute code when a condition is true.",
     type: "video",
     level: "basic",
-    url: "https://www.youtube.com/results?search_query=Java+if+statement+for+beginners",
+    url: "https://www.youtube.com/watch?v=cdNhXVb5j7o",
     order: 1,
   },
-  {
-    title: "Java If-Else Statements",
-    description: "Understand how if-else selects between two alternatives.",
-    type: "video",
-    level: "basic",
-    url: "https://www.youtube.com/results?search_query=Java+if+else+statements",
-    order: 2,
-  },
+  
   {
     title: "Introduction to If Statements",
     description: "Learn the syntax and working of if statements.",
@@ -138,17 +131,10 @@ Test your answers using Java.`,
     description: "Learn how to handle multiple conditions using an else-if ladder.",
     type: "video",
     level: "medium",
-    url: "https://www.youtube.com/results?search_query=Java+else+if+ladder+tutorial",
+    url: "https://youtu.be/I5srDu75h_M?si=Fu7uITq0RoI-u6DG",
     order: 1,
   },
-  {
-    title: "Java Switch Statements",
-    description: "Understand switch statements for selecting among alternatives.",
-    type: "video",
-    level: "medium",
-    url: "https://www.youtube.com/results?search_query=Java+switch+statement+tutorial",
-    order: 2,
-  },
+
   {
     title: "Else-If Ladder",
     description: "Use multiple conditions to select one matching branch.",
@@ -261,17 +247,10 @@ Write and test your solutions in Java.`,
     description: "Explore complex conditions and decision-making patterns.",
     type: "video",
     level: "advanced",
-    url: "https://www.youtube.com/results?search_query=Java+advanced+conditional+statements",
+    url: "https://www.youtube.com/watch?v=LQsyrHJzNwA",
     order: 1,
   },
-  {
-    title: "Modern Java Switch Expressions",
-    description: "Learn modern switch expressions and arrow-style cases.",
-    type: "video",
-    level: "advanced",
-    url: "https://www.youtube.com/results?search_query=Java+switch+expressions+arrow+syntax",
-    order: 2,
-  },
+  
   {
     title: "Complex Conditions and Short-Circuit Logic",
     description: "Build readable conditions using logical operators.",
@@ -390,97 +369,146 @@ Implement and test your answers in Java.`,
   },
 ];
 
+
 async function seedConditionalStatementsResources() {
-  if (!MONGODB_URI) {
-    throw new Error("Missing MONGODB_URI or MONGO_URI in your .env file.");
-  }
-
-  await mongoose.connect(MONGODB_URI);
-  console.log("Connected to MongoDB.");
-
-  const topic = await Topic.findOne({ title: TOPIC_TITLE });
-
-  if (!topic) {
-    throw new Error(
-      `Topic "${TOPIC_TITLE}" was not found. Check the exact title in MongoDB.`
-    );
-  }
-
-  let inserted = 0;
-  let updated = 0;
-
-  for (const resource of resources) {
-    const filter = {
-      topicId: topic._id,
-      title: resource.title,
-      type: resource.type,
-      level: resource.level,
-    };
-
-    const result = await LearningResource.updateOne(
-      filter,
-      {
-        $set: {
-          ...resource,
-          topicId: topic._id,
-          isActive: true,
-        },
-      },
-      { upsert: true, runValidators: true }
-    );
-
-    if (result.upsertedCount > 0) {
-      inserted++;
-    } else if (result.modifiedCount > 0) {
-      updated++;
+  try {
+    // 1. Check MongoDB connection URL
+    if (!MONGODB_URI) {
+      throw new Error(
+        "Missing MONGODB_URI or MONGO_URI in your .env file."
+      );
     }
-  }
 
-  console.log(`Topic: ${topic.title}`);
-  console.log(`Inserted: ${inserted}`);
-  console.log(`Updated: ${updated}`);
-  console.log(`Processed: ${resources.length}`);
+    // 2. Connect to MongoDB
+    await mongoose.connect(MONGODB_URI);
+    console.log("Connected to MongoDB.");
 
-  const counts = await LearningResource.aggregate([
-    {
-      $match: {
+    // 3. Find Conditional Statements topic
+    const topic = await Topic.findOne({
+      title: TOPIC_TITLE,
+    });
+
+    if (!topic) {
+      throw new Error(
+        `Topic "${TOPIC_TITLE}" was not found. Check its exact title in MongoDB.`
+      );
+    }
+
+    // 4. Delete old videos ONLY for Conditional Statements.
+    // Notes and worksheets will remain unchanged.
+    const deleteResult = await LearningResource.deleteMany({
+      topicId: topic._id,
+      type: "video",
+    });
+
+    console.log(
+      `Old video resources removed: ${deleteResult.deletedCount}`
+    );
+
+    // 5. Insert or update resources
+    let inserted = 0;
+    let updated = 0;
+    let unchanged = 0;
+
+    for (const resource of resources) {
+      const cleanResource = {
+        ...resource,
+        url: resource.url?.trim(),
         topicId: topic._id,
         isActive: true,
-        level: { $in: ["basic", "medium", "advanced"] },
-      },
-    },
-    {
-      $group: {
-        _id: {
-          level: "$level",
-          type: "$type",
+      };
+
+      const filter = {
+        topicId: topic._id,
+        title: resource.title,
+        type: resource.type,
+        level: resource.level,
+      };
+
+      const result = await LearningResource.updateOne(
+        filter,
+        {
+          $set: cleanResource,
         },
-        count: { $sum: 1 },
-      },
-    },
-    {
-      $sort: {
-        "_id.level": 1,
-        "_id.type": 1,
-      },
-    },
-  ]);
+        {
+          upsert: true,
+          runValidators: true,
+        }
+      );
 
-  console.log("Active resource counts by level and type:");
-  console.table(
-    counts.map((item) => ({
-      level: item._id.level,
-      type: item._id.type,
-      count: item.count,
-    }))
-  );
-}
+      if (result.upsertedCount > 0) {
+        inserted++;
+      } else if (result.modifiedCount > 0) {
+        updated++;
+      } else {
+        unchanged++;
+      }
+    }
 
-seedConditionalStatementsResources()
-  .catch((error) => {
+    // 6. Display seeding summary
+    console.log("--------------------------------");
+    console.log(`Topic: ${topic.title}`);
+    console.log(`Inserted: ${inserted}`);
+    console.log(`Updated: ${updated}`);
+    console.log(`Unchanged: ${unchanged}`);
+    console.log(`Processed: ${resources.length}`);
+    console.log("--------------------------------");
+
+    // 7. Count active resources by level and type
+    const counts = await LearningResource.aggregate([
+      {
+        $match: {
+          topicId: topic._id,
+          isActive: true,
+          level: {
+            $in: ["basic", "medium", "advanced"],
+          },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            level: "$level",
+            type: "$type",
+          },
+          count: {
+            $sum: 1,
+          },
+        },
+      },
+      {
+        $sort: {
+          "_id.level": 1,
+          "_id.type": 1,
+        },
+      },
+    ]);
+
+    console.log("Active resource counts by level and type:");
+
+    console.table(
+      counts.map((item) => ({
+        level: item._id.level,
+        type: item._id.type,
+        count: item.count,
+      }))
+    );
+
+    console.log(
+      "Conditional Statements resources seeded successfully!"
+    );
+
+  } catch (error) {
     console.error("Seeding failed:", error.message);
     process.exitCode = 1;
-  })
-  .finally(async () => {
-    await mongoose.disconnect();
-  });
+
+  } finally {
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.disconnect();
+      console.log("MongoDB connection closed.");
+    }
+  }
+}
+
+// Run the seed function
+seedConditionalStatementsResources();

@@ -124,7 +124,7 @@ Write the Java statements and test them in your IDE.`,
     description: "Learn widening and narrowing conversions.",
     type: "video",
     level: "medium",
-    url: " https://www.youtube.com/watch?v=BGTx91t8q50&t=3889s ",
+    url: " https://youtu.be/X0zdAG7gfgs?si=AsfnLwEcaDgSREnl ",
     order: 1,
   },
   
