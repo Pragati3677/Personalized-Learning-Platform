@@ -50,6 +50,7 @@ The platform provides separate modules for students and teachers.
 ## 📁 Project Structure
 
 ```text
+
 edu-path-ai/
 │
 ├── backend/
@@ -59,7 +60,8 @@ edu-path-ai/
 │   │   ├── models/
 │   │   ├── routes/
 │   │   ├── middleware/
-│   │   └── services/
+│   │   ├── services/
+│   │   └── utils/
 │   ├── server.js
 │   ├── package.json
 │   └── .env
@@ -75,6 +77,7 @@ edu-path-ai/
 │   └── requirements.txt
 │
 └── README.md
+
 ```
 
 ---
