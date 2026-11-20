@@ -107,7 +107,7 @@ git --version
 ### 2. Clone the Repository
 
 ```bash
-git clone YOUR_GITHUB_REPOSITORY_URL
+git clone https://github.com/Pragati3677/Personalized-Learning-Platform.git
 ```
 
 Move into the project directory:
@@ -116,7 +116,6 @@ Move into the project directory:
 cd edu-path-ai
 ```
 
-Replace `YOUR_GITHUB_REPOSITORY_URL` with your actual GitHub repository URL.
 
 ---
 
